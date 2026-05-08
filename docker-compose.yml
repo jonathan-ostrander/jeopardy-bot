@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  jeopardy-bot:
+    build: .
+    container_name: jeopardy-bot
+    restart: unless-stopped
+    environment:
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
+      - CLIENT_ID=${CLIENT_ID}
+      - ANSWER_SIMILARITY_THRESHOLD=${ANSWER_SIMILARITY_THRESHOLD:-0.8}
+    volumes:
+      - ./src/shared/data:/usr/src/app/src/shared/data
+    networks:
+      - jeopardy-network
+
+  scraper:
+    build: .
+    container_name: jeopardy-scraper
+    environment:
+      - ANSWER_SIMILARITY_THRESHOLD=${ANSWER_SIMILARITY_THRESHOLD:-0.8}
+    volumes:
+      - ./src/shared/data:/usr/src/app/src/shared/data
+    command: ["bun", "run", "dist/scraper/index.js", "--recent", "10"]
+    networks:
+      - jeopardy-network
+    profiles:
+      - scraper
+
+networks:
+  jeopardy-network:
+    driver: bridge
