@@ -7,6 +7,7 @@ import {
   Routes,
   PermissionFlagsBits,
   EmbedBuilder,
+  AttachmentBuilder,
   Message,
   ThreadChannel,
   TextChannel,
@@ -17,16 +18,28 @@ import {
 } from 'discord.js';
 import { config } from 'dotenv';
 import { GameManager } from './game/GameManager';
+import { GameState, Question } from '../shared/types';
 import { 
-  renderBoard, 
-  renderQuestion, 
   renderScores, 
   renderFinalJeopardyCategory,
   renderFinalJeopardyClue,
   renderFinalResults,
   renderAnswerReveal
 } from './game/BoardRenderer';
+import { generateBoardImage, generateClueImage } from './game/ImageGenerator';
 import { validateAnswerFormat } from './game/AnswerValidator';
+
+async function createBoardAttachment(game: GameState): Promise<AttachmentBuilder> {
+  const categories = game.round === 'jeopardy' ? game.board.jeopardyRound : game.board.doubleJeopardyRound;
+  const currentPlayer = game.currentPlayerId ? game.players.find(p => p.userId === game.currentPlayerId) : undefined;
+  const boardBuffer = await generateBoardImage(categories, game.round, currentPlayer?.username);
+  return new AttachmentBuilder(boardBuffer, { name: 'board.jpg' });
+}
+
+async function createClueAttachment(question: Question, categoryName: string): Promise<AttachmentBuilder> {
+  const clueBuffer = await generateClueImage(question.clue, categoryName, question.value, question.isDailyDouble);
+  return new AttachmentBuilder(clueBuffer, { name: 'clue.jpg' });
+}
 
 config();
 
@@ -188,8 +201,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
         // Auto-start if 3+ players
         if (game.players.length >= 3) {
           gameManager.startGame(game);
-          const boardEmbed = renderBoard(game);
-          await interaction.followUp({ embeds: [boardEmbed] });
+          const boardAttachment = await createBoardAttachment(game);
+          await interaction.followUp({ files: [boardAttachment] });
         }
 
       } else if (subcommand === 'board') {
@@ -199,8 +212,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
           return;
         }
 
-        const boardEmbed = renderBoard(game);
-        await interaction.reply({ embeds: [boardEmbed] });
+        const boardAttachment = await createBoardAttachment(game);
+        await interaction.reply({ files: [boardAttachment] });
 
       } else if (subcommand === 'scores') {
         const game = gameManager.getGame(channelId);
@@ -249,8 +262,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
           ? game.board.jeopardyRound[categoryIndex]
           : game.board.doubleJeopardyRound[categoryIndex];
 
-        const questionEmbed = renderQuestion(question, category.name);
-        await interaction.reply({ embeds: [questionEmbed] });
+        const clueAttachment = await createClueAttachment(question, category.name);
+        await interaction.reply({ files: [clueAttachment] });
 
         // If not daily double, start accepting answers after 3 seconds
         if (!question.isDailyDouble) {
@@ -303,8 +316,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
                   }
                 }
 
-                const boardEmbed = renderBoard(game);
-                await interaction.followUp({ embeds: [boardEmbed] });
+                const boardAttachment = await createBoardAttachment(game);
+                await interaction.followUp({ files: [boardAttachment] });
               }
             }, 15000);
           }, 3000);
@@ -338,8 +351,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
             ? game.board.jeopardyRound[game.selectedCategoryIndex!]
             : game.board.doubleJeopardyRound[game.selectedCategoryIndex!];
           
-          const questionEmbed = renderQuestion(game.selectedQuestion, category.name);
-          await interaction.followUp({ embeds: [questionEmbed] });
+          const clueAttachment = await createClueAttachment(game.selectedQuestion, category.name);
+          await interaction.followUp({ files: [clueAttachment] });
 
           setTimeout(async () => {
             game.status = 'answering';
@@ -364,8 +377,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
                 game.selectedQuestionIndex = null;
                 game.status = 'selecting';
 
-                const boardEmbed = renderBoard(game);
-                await interaction.followUp({ embeds: [boardEmbed] });
+                const boardAttachment = await createBoardAttachment(game);
+                await interaction.followUp({ files: [boardAttachment] });
               }
             }, 15000);
           }, 3000);
@@ -504,8 +517,8 @@ client.on(Events.MessageCreate, async (message) => {
 
       // Show board if game continues
       if (game.status === 'selecting') {
-        const boardEmbed = renderBoard(game);
-        await message.channel.send({ embeds: [boardEmbed] });
+        const boardAttachment = await createBoardAttachment(game);
+        await message.channel.send({ files: [boardAttachment] });
       }
     } else if (!result.isCorrect && result.player) {
       await message.react('❌');

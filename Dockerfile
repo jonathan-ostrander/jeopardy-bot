@@ -16,6 +16,11 @@ RUN bun run build
 FROM oven/bun:1-slim
 WORKDIR /usr/src/app
 
+# Install fontconfig for custom fonts and register ITC Korinna
+RUN apt-get update && apt-get install -y fontconfig && rm -rf /var/lib/apt/lists/*
+COPY fonts/ /usr/share/fonts/
+RUN fc-cache -fv
+
 # Copy built files and dependencies
 COPY --from=base /usr/src/app/dist ./dist
 COPY --from=base /usr/src/app/node_modules ./node_modules
