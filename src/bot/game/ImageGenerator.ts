@@ -77,15 +77,13 @@ function renderSvgTextLines(
   fontSize: number,
   color: string,
   fontFamily: string = FONT_KORINNA,
-  fontWeight: string = 'bold',
-  fontStretch: string = 'normal'
+  fontWeight: string = 'bold'
 ): string {
   const lineHeight = fontSize * 1.3;
   const totalHeight = lines.length * lineHeight;
   const startY = centerY - totalHeight / 2 + lineHeight / 2;
 
-  const stretchAttr = fontStretch !== 'normal' ? ` font-stretch="${fontStretch}"` : '';
-  let svg = `<text x="${x}" y="${startY}" font-family="${fontFamily}" font-size="${fontSize}" font-weight="${fontWeight}"${stretchAttr} fill="${color}" text-anchor="middle" filter="url(#textShadow)">`;
+  let svg = `<text x="${x}" y="${startY}" font-family="${fontFamily}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${color}" text-anchor="middle" filter="url(#textShadow)">`;
   lines.forEach((line, i) => {
     const dy = i === 0 ? 0 : lineHeight;
     svg += `<tspan x="${x}" dy="${dy}">${escapeXml(line)}</tspan>`;
@@ -137,7 +135,7 @@ export async function generateBoardImage(
     const maxTextWidth = cellWidth - 20;
     const maxTextHeight = headerHeight - 30;
     const { lines, fontSize } = fitText(category.name, maxTextWidth, maxTextHeight, 28, 14);
-    svg += renderSvgTextLines(lines, textX, textCenterY, fontSize, TEXT_WHITE, FONT_SWISS, 'bold', 'condensed');
+    svg += renderSvgTextLines(lines, textX, textCenterY, fontSize, TEXT_WHITE, FONT_SWISS);
   }
 
   // Value cells
@@ -154,7 +152,7 @@ export async function generateBoardImage(
       if (!question.isPlayed) {
         const textX = col * cellWidth + cellWidth / 2;
         const textY = headerHeight + row * cellHeight + cellHeight / 2;
-        svg += `<text x="${textX}" y="${textY}" font-family="${FONT_SWISS}" font-size="48" font-weight="bold" font-stretch="condensed" fill="${TEXT_GOLD}" text-anchor="middle" dominant-baseline="middle" filter="url(#textShadow)">$${question.value}</text>`;
+        svg += `<text x="${textX}" y="${textY}" font-family="${FONT_SWISS}" font-size="48" font-weight="bold" fill="${TEXT_GOLD}" text-anchor="middle" dominant-baseline="middle" filter="url(#textShadow)">$${question.value}</text>`;
       }
     }
   }
@@ -205,7 +203,7 @@ export async function generateClueImage(
   svg += `<rect width="${width}" height="${height}" fill="${JEOPARDY_BLUE}"/>`;
 
   // Header
-  svg += `<text x="${width / 2}" y="50" font-family="${FONT_SWISS}" font-size="36" font-weight="bold" font-stretch="condensed" fill="${TEXT_GOLD}" text-anchor="middle" filter="url(#textShadow)">${escapeXml(headerText)}</text>`;
+  svg += `<text x="${width / 2}" y="50" font-family="${FONT_SWISS}" font-size="36" font-weight="bold" fill="${TEXT_GOLD}" text-anchor="middle" filter="url(#textShadow)">${escapeXml(headerText)}</text>`;
 
   // Clue text
   const textCenterY = height / 2;
