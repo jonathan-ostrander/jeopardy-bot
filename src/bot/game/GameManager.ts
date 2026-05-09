@@ -16,6 +16,7 @@ export class GameManager {
   private games: Map<string, GameState> = new Map();
 
   createGame(channelId: string, hostId: string): GameState {
+    console.log(`[GameManager] Creating game for channel ${channelId}, host ${hostId}`);
     const board = this.generateBoard();
     
     const game: GameState = {
@@ -33,9 +34,13 @@ export class GameManager {
       channelId,
       threadId: null,
       hostId,
+      currentAnsweringPlayerId: null,
+      attemptedPlayerIds: new Set(),
+      currentClueMessageId: null,
     };
 
     this.games.set(channelId, game);
+    console.log(`[GameManager] Game created for channel ${channelId}. Total games: ${this.games.size}`);
     return game;
   }
 
@@ -44,12 +49,15 @@ export class GameManager {
   }
 
   endGame(channelId: string): void {
+    console.log(`[GameManager] Ending game for channel ${channelId}`);
     this.games.delete(channelId);
+    console.log(`[GameManager] Game ended. Total games: ${this.games.size}`);
   }
 
   addPlayer(game: GameState, userId: string, username: string): Player {
     const existingPlayer = game.players.find(p => p.userId === userId);
     if (existingPlayer) {
+      console.log(`[GameManager] Player ${username} (${userId}) already in game`);
       return existingPlayer;
     }
 
@@ -63,10 +71,12 @@ export class GameManager {
     };
 
     game.players.push(player);
+    console.log(`[GameManager] Player ${username} (${userId}) added. Total players: ${game.players.length}`);
     return player;
   }
 
   startGame(game: GameState, force = false): void {
+    console.log(`[GameManager] Starting game. Players: ${game.players.length}, force: ${force}`);
     if (!force && game.players.length < 2) {
       throw new Error('Need at least 2 players to start');
     }
@@ -74,6 +84,7 @@ export class GameManager {
     game.status = 'selecting';
     // Randomly select first player
     game.currentPlayerId = game.players[Math.floor(Math.random() * game.players.length)].userId;
+    console.log(`[GameManager] Game started. First player: ${game.currentPlayerId}`);
   }
 
   selectQuestion(game: GameState, categoryIndex: number, questionIndex: number): Question {
@@ -97,22 +108,88 @@ export class GameManager {
       throw new Error('Question already played');
     }
 
+    console.log(`[GameManager] Selected question: ${category.name} $${question.value} (Daily Double: ${question.isDailyDouble})`);
+
     game.selectedQuestion = question;
     game.selectedCategoryIndex = categoryIndex;
     game.selectedQuestionIndex = questionIndex;
     game.answeredThisQuestion = new Set();
     game.wrongThisQuestion = new Set();
+    game.attemptedPlayerIds = new Set();
+    game.currentAnsweringPlayerId = null;
+    game.currentClueMessageId = null;
 
     if (question.isDailyDouble) {
       game.status = 'daily_double_wager';
+      console.log(`[GameManager] Status -> daily_double_wager`);
     } else {
       game.status = 'reading';
+      console.log(`[GameManager] Status -> reading`);
     }
 
     return question;
   }
 
+  buzzIn(game: GameState, playerId: string): void {
+    console.log(`[GameManager] Player ${playerId} buzzing in. Attempted: ${Array.from(game.attemptedPlayerIds)}`);
+    if (!game.selectedQuestion) {
+      throw new Error('No question selected');
+    }
+
+    if (game.attemptedPlayerIds.has(playerId)) {
+      throw new Error('You already had a turn on this question');
+    }
+
+    if (game.selectedQuestion.isDailyDouble && game.currentPlayerId !== playerId) {
+      throw new Error('Only the current player can answer a Daily Double');
+    }
+
+    game.currentAnsweringPlayerId = playerId;
+    game.attemptedPlayerIds.add(playerId);
+    game.status = 'answering';
+    console.log(`[GameManager] Status -> answering. Current answering player: ${playerId}`);
+  }
+
+  handleAnswerTimeout(game: GameState): { allAttempted: boolean } {
+    console.log(`[GameManager] Answer timeout for player ${game.currentAnsweringPlayerId}`);
+    if (!game.selectedQuestion) {
+      throw new Error('No question selected');
+    }
+
+    const player = game.players.find(p => p.userId === game.currentAnsweringPlayerId);
+    if (player) {
+      const points = game.selectedQuestion.isDailyDouble
+        ? ((game.selectedQuestion as any).wager || game.selectedQuestion.value)
+        : game.selectedQuestion.value;
+      player.score -= points;
+      console.log(`[GameManager] ${player.username} timed out, lost $${points}. Score: ${player.score}`);
+    }
+
+    game.currentAnsweringPlayerId = null;
+    const allAttempted = game.attemptedPlayerIds.size >= game.players.length;
+    console.log(`[GameManager] Attempted: ${game.attemptedPlayerIds.size}/${game.players.length}. All attempted: ${allAttempted}`);
+
+    if (allAttempted) {
+      // End question - everyone tried and failed
+      game.selectedQuestion.isPlayed = true;
+      game.lastAnsweredQuestion = {
+        question: game.selectedQuestion,
+        correctPlayerIds: [],
+        answers: [],
+        isCorrected: false,
+      };
+      game.status = 'selecting';
+      console.log(`[GameManager] Status -> selecting (all attempted, no correct answer)`);
+    } else {
+      game.status = 'reading';
+      console.log(`[GameManager] Status -> reading (more players can buzz in)`);
+    }
+
+    return { allAttempted };
+  }
+
   submitWager(game: GameState, playerId: string, wager: number): void {
+    console.log(`[GameManager] Player ${playerId} wagering $${wager}`);
     const player = game.players.find(p => p.userId === playerId);
     if (!player) {
       throw new Error('Player not found');
@@ -138,6 +215,7 @@ export class GameManager {
       }
       
       game.status = 'reading';
+      console.log(`[GameManager] Daily double wager placed. Status -> reading`);
     } else if (game.status === 'final_jeopardy_wager') {
       player.finalJeopardyWager = wager;
       
@@ -145,11 +223,13 @@ export class GameManager {
       const allWagered = game.players.every(p => p.finalJeopardyWager !== null);
       if (allWagered) {
         game.status = 'final_jeopardy_answering';
+        console.log(`[GameManager] All wagers in. Status -> final_jeopardy_answering`);
       }
     }
   }
 
-  submitAnswer(game: GameState, playerId: string, answer: string, messageId: string): { isCorrect: boolean; player: Player | null } {
+  submitAnswer(game: GameState, playerId: string, answer: string, messageId: string): { isCorrect: boolean; player: Player | null; allAttempted: boolean } {
+    console.log(`[GameManager] Player ${playerId} submitted answer: "${answer}"`);
     const player = game.players.find(p => p.userId === playerId);
     if (!player) {
       throw new Error('Player not found');
@@ -159,29 +239,19 @@ export class GameManager {
       throw new Error('No question selected');
     }
 
-    // Check if player already answered this question
-    if (game.answeredThisQuestion.has(playerId)) {
-      return { isCorrect: false, player: null };
-    }
-
-    // Check if player got a previous question wrong in this round
-    if (!player.canAnswer) {
-      return { isCorrect: false, player: null };
-    }
-
-    // For Daily Double, only current player can answer
-    if (game.selectedQuestion.isDailyDouble && game.currentPlayerId !== playerId) {
-      return { isCorrect: false, player: null };
+    if (game.currentAnsweringPlayerId !== playerId) {
+      throw new Error('It is not your turn to answer');
     }
 
     // Validate answer format
     if (!validateAnswerFormat(answer)) {
-      return { isCorrect: false, player: null };
+      return { isCorrect: false, player: null, allAttempted: false };
     }
 
     game.answeredThisQuestion.add(playerId);
 
     const check = checkAnswer(answer, game.selectedQuestion.acceptableAnswers);
+    console.log(`[GameManager] Answer check: isCorrect=${check.isCorrect}`);
     
     const playerAnswer: PlayerAnswer = {
       playerId,
@@ -198,6 +268,7 @@ export class GameManager {
         : game.selectedQuestion.value;
       
       player.score += points;
+      console.log(`[GameManager] Correct! ${player.username} gains $${points}. Score: ${player.score}`);
       
       // Mark question as played
       game.selectedQuestion.isPlayed = true;
@@ -216,6 +287,13 @@ export class GameManager {
       // Set current player to the one who got it right
       game.currentPlayerId = playerId;
       
+      // Reset question state
+      game.currentAnsweringPlayerId = null;
+      game.attemptedPlayerIds = new Set();
+      game.answeredThisQuestion = new Set();
+      game.wrongThisQuestion = new Set();
+      game.currentClueMessageId = null;
+      
       // Check if round is complete
       if (this.isRoundComplete(game)) {
         if (game.round === 'jeopardy') {
@@ -225,13 +303,14 @@ export class GameManager {
         }
       } else {
         game.status = 'selecting';
+        console.log(`[GameManager] Status -> selecting (correct answer)`);
       }
 
       game.selectedQuestion = null;
       game.selectedCategoryIndex = null;
       game.selectedQuestionIndex = null;
 
-      return { isCorrect: true, player };
+      return { isCorrect: true, player, allAttempted: false };
     } else {
       // Wrong answer
       const points = game.selectedQuestion.isDailyDouble
@@ -240,6 +319,7 @@ export class GameManager {
       
       player.score -= points;
       game.wrongThisQuestion.add(playerId);
+      console.log(`[GameManager] Wrong! ${player.username} loses $${points}. Score: ${player.score}`);
       
       // For Daily Double, wrong answer ends the question
       if (game.selectedQuestion.isDailyDouble) {
@@ -254,26 +334,39 @@ export class GameManager {
 
         game.players.forEach(p => p.canAnswer = true);
         
-        if (this.isRoundComplete(game)) {
-          if (game.round === 'jeopardy') {
-            this.transitionToDoubleJeopardy(game);
-          } else if (game.round === 'double_jeopardy') {
-            this.transitionToFinalJeopardy(game);
-          }
-        } else {
-          game.status = 'selecting';
-        }
+        game.currentAnsweringPlayerId = null;
+        game.status = 'selecting';
+        console.log(`[GameManager] Status -> selecting (daily double wrong)`);
 
-        game.selectedQuestion = null;
-        game.selectedCategoryIndex = null;
-        game.selectedQuestionIndex = null;
+        return { isCorrect: false, player, allAttempted: true };
       }
 
-      return { isCorrect: false, player };
+      // Non-daily-double: release turn, check if all attempted
+      game.currentAnsweringPlayerId = null;
+      const allAttempted = game.attemptedPlayerIds.size >= game.players.length;
+      
+      if (allAttempted) {
+        // End question - everyone tried and failed
+        game.selectedQuestion.isPlayed = true;
+        game.lastAnsweredQuestion = {
+          question: game.selectedQuestion,
+          correctPlayerIds: [],
+          answers: [playerAnswer],
+          isCorrected: false,
+        };
+        game.status = 'selecting';
+        console.log(`[GameManager] Status -> selecting (all attempted wrong)`);
+      } else {
+        game.status = 'reading';
+        console.log(`[GameManager] Status -> reading (wrong answer, more players)`);
+      }
+
+      return { isCorrect: false, player, allAttempted };
     }
   }
 
   submitFinalJeopardyAnswer(game: GameState, playerId: string, answer: string): void {
+    console.log(`[GameManager] Final Jeopardy answer from ${playerId}: "${answer}"`);
     const player = game.players.find(p => p.userId === playerId);
     if (!player) {
       throw new Error('Player not found');
@@ -288,11 +381,13 @@ export class GameManager {
     // Check if all players have answered
     const allAnswered = game.players.every(p => p.finalJeopardyAnswer !== null);
     if (allAnswered) {
+      console.log(`[GameManager] All Final Jeopardy answers in`);
       this.scoreFinalJeopardy(game);
     }
   }
 
   scoreFinalJeopardy(game: GameState): void {
+    console.log(`[GameManager] Scoring Final Jeopardy`);
     const finalJeopardy = game.board.finalJeopardy;
     
     for (const player of game.players) {
@@ -301,16 +396,20 @@ export class GameManager {
         
         if (check.isCorrect) {
           player.score += player.finalJeopardyWager;
+          console.log(`[GameManager] ${player.username} correct! +$${player.finalJeopardyWager}. Score: ${player.score}`);
         } else {
           player.score -= player.finalJeopardyWager;
+          console.log(`[GameManager] ${player.username} wrong! -$${player.finalJeopardyWager}. Score: ${player.score}`);
         }
       }
     }
 
     game.status = 'ended';
+    console.log(`[GameManager] Game ended`);
   }
 
   correctAnswer(game: GameState, messageId: string): { success: boolean; player: Player | null } {
+    console.log(`[GameManager] Correcting answer for message ${messageId}`);
     if (!game.lastAnsweredQuestion) {
       return { success: false, player: null };
     }
@@ -348,6 +447,7 @@ export class GameManager {
     player.score += points;
     game.lastAnsweredQuestion.correctPlayerIds.push(answer.playerId);
     game.lastAnsweredQuestion.isCorrected = true;
+    console.log(`[GameManager] Corrected! ${player.username} gains $${points}. Score: ${player.score}`);
 
     return { success: true, player };
   }
@@ -423,6 +523,9 @@ export class GameManager {
     game.selectedQuestionIndex = null;
     game.answeredThisQuestion = new Set();
     game.wrongThisQuestion = new Set();
+    game.attemptedPlayerIds = new Set();
+    game.currentAnsweringPlayerId = null;
+    game.currentClueMessageId = null;
     game.players.forEach(p => {
       p.canAnswer = true;
       p.score = p.score * 2; // Double scores? No, that's not right
@@ -435,6 +538,9 @@ export class GameManager {
     game.selectedQuestion = null;
     game.selectedCategoryIndex = null;
     game.selectedQuestionIndex = null;
+    game.attemptedPlayerIds = new Set();
+    game.currentAnsweringPlayerId = null;
+    game.currentClueMessageId = null;
     
     // Reset Final Jeopardy state
     game.players.forEach(p => {

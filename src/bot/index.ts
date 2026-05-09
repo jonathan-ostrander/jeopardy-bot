@@ -15,7 +15,8 @@ import {
   ReactionEmoji,
   MessageReaction,
   User,
-  MessageFlags
+  MessageFlags,
+  Guild
 } from 'discord.js';
 import { config } from 'dotenv';
 import { GameManager } from './game/GameManager';
@@ -40,6 +41,79 @@ async function createBoardAttachment(game: GameState): Promise<AttachmentBuilder
 async function createClueAttachment(question: Question, categoryName: string): Promise<AttachmentBuilder> {
   const clueBuffer = await generateClueImage(question.clue, categoryName, question.value, question.isDailyDouble);
   return new AttachmentBuilder(clueBuffer, { name: 'clue.jpg' });
+}
+
+const STANDARD_EMOJIS = ['🎯', '🎲', '🏆', '⭐', '🔔', '🎪', '🎨', '🎭', '🎸', '🎺', '🎻', '🎮', '🎰', '🎳', '🎱', '✨', '💫', '🔥', '💥', '⚡', '🎉', '🎊', '🎈', '🎁', '🎀', '🎗️', '🎖️', '🏅', '🥇', '🥈', '🥉', '🏆', '🏵️', '🎫', '🎟️', '🎬', '🎤', '🎧', '🎼', '🎹', '🥁', '🎷'];
+
+function getRandomEmoji(guild: Guild | null): string {
+  if (guild) {
+    const customEmojis = Array.from(guild.emojis.cache.values());
+    if (customEmojis.length > 0) {
+      const random = customEmojis[Math.floor(Math.random() * customEmojis.length)];
+      return random.toString();
+    }
+  }
+  return STANDARD_EMOJIS[Math.floor(Math.random() * STANDARD_EMOJIS.length)];
+}
+
+const answerTimeouts = new Map<string, NodeJS.Timeout>();
+
+async function postBuzzerMessage(game: GameState, channel: TextChannel | ThreadChannel) {
+  const emoji = getRandomEmoji(channel.guild);
+  const buzzMessage = await channel.send(`React with ${emoji} to buzz in and answer!`);
+  game.currentClueMessageId = buzzMessage.id;
+  game.status = 'reading';
+}
+
+async function revealAnswerAndReset(game: GameState, channel: TextChannel | ThreadChannel) {
+  if (!game.selectedQuestion) return;
+  
+  game.selectedQuestion.isPlayed = true;
+  
+  const revealEmbed = renderAnswerReveal(game.selectedQuestion, []);
+  await channel.send({ embeds: [revealEmbed] });
+  await channel.send(`No one got it right! The answer was: **${game.selectedQuestion.answer}**`);
+  
+  game.lastAnsweredQuestion = {
+    question: game.selectedQuestion,
+    correctPlayerIds: [],
+    answers: [],
+    isCorrected: false,
+  };
+  
+  game.selectedQuestion = null;
+  game.selectedCategoryIndex = null;
+  game.selectedQuestionIndex = null;
+  game.currentAnsweringPlayerId = null;
+  game.attemptedPlayerIds = new Set();
+  game.answeredThisQuestion = new Set();
+  game.wrongThisQuestion = new Set();
+  game.currentClueMessageId = null;
+  
+  // Check round complete
+  const categories = game.round === 'jeopardy'
+    ? game.board.jeopardyRound
+    : game.board.doubleJeopardyRound;
+  
+  const isComplete = categories.every(cat => cat.questions.every(q => q.isPlayed));
+  
+  if (isComplete) {
+    if (game.round === 'jeopardy') {
+      game.round = 'double_jeopardy';
+      await channel.send('**Double Jeopardy!**');
+    } else {
+      game.round = 'final_jeopardy';
+      game.status = 'final_jeopardy_wager';
+      const finalEmbed = renderFinalJeopardyCategory(game.board.finalJeopardy.category);
+      await channel.send({ embeds: [finalEmbed] });
+      await channel.send('DM me your wagers!');
+      return;
+    }
+  }
+  
+  game.status = 'selecting';
+  const boardAttachment = await createBoardAttachment(game);
+  await channel.send({ files: [boardAttachment] });
 }
 
 config();
@@ -152,14 +226,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
   const userId = interaction.user.id;
   const username = interaction.user.username;
 
+  console.log(`[Bot] Command: ${commandName}${options.getSubcommand ? ' ' + options.getSubcommand() : ''} from ${username} (${userId}) in channel ${channelId}`);
+
   try {
     if (commandName === 'jeopardy') {
       const subcommand = options.getSubcommand();
 
       if (subcommand === 'new') {
+        console.log(`[Bot] Processing /jeopardy new`);
         // Check if game already exists
         const existingGame = gameManager.getGame(channelId);
         if (existingGame) {
+          console.log(`[Bot] Game already exists in channel ${channelId}`);
           await interaction.reply({ content: 'A game is already in progress!', flags: [MessageFlags.Ephemeral] });
           return;
         }
@@ -175,6 +253,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
             autoArchiveDuration: 60,
           });
           game.threadId = thread.id;
+          console.log(`[Bot] Created thread ${thread.id}`);
         }
 
         const embed = new EmbedBuilder()
@@ -188,8 +267,10 @@ client.on(Events.InteractionCreate, async (interaction) => {
           });
 
         await interaction.reply({ embeds: [embed] });
+        console.log(`[Bot] Game created successfully`);
 
       } else if (subcommand === 'join') {
+        console.log(`[Bot] Processing /jeopardy join`);
         const game = gameManager.getGame(channelId);
         if (!game) {
           await interaction.reply({ content: 'No game in progress! Create one with `/jeopardy new`', flags: [MessageFlags.Ephemeral] });
@@ -206,12 +287,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         // Auto-start if 3+ players
         if (game.players.length >= 3) {
+          console.log(`[Bot] Auto-starting game with ${game.players.length} players`);
           gameManager.startGame(game);
           const boardAttachment = await createBoardAttachment(game);
           await interaction.followUp({ files: [boardAttachment] });
         }
 
       } else if (subcommand === 'board') {
+        console.log(`[Bot] Processing /jeopardy board`);
         const game = gameManager.getGame(channelId);
         if (!game) {
           await interaction.reply({ content: 'No game in progress!', flags: [MessageFlags.Ephemeral] });
@@ -222,6 +305,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await interaction.reply({ files: [boardAttachment] });
 
       } else if (subcommand === 'scores') {
+        console.log(`[Bot] Processing /jeopardy scores`);
         const game = gameManager.getGame(channelId);
         if (!game) {
           await interaction.reply({ content: 'No game in progress!', flags: [MessageFlags.Ephemeral] });
@@ -232,6 +316,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await interaction.reply({ embeds: [scoresEmbed] });
 
       } else if (subcommand === 'begin') {
+        console.log(`[Bot] Processing /jeopardy begin`);
         const game = gameManager.getGame(channelId);
         if (!game) {
           await interaction.reply({ content: 'No game in progress!', flags: [MessageFlags.Ephemeral] });
@@ -259,6 +344,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         await interaction.reply({ files: [boardAttachment] });
 
       } else if (subcommand === 'end') {
+        console.log(`[Bot] Processing /jeopardy end`);
         const game = gameManager.getGame(channelId);
         if (!game) {
           await interaction.reply({ content: 'No game in progress!', flags: [MessageFlags.Ephemeral] });
@@ -270,6 +356,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
 
     } else if (commandName === 'select') {
+      console.log(`[Bot] Processing /select`);
       const game = gameManager.getGame(channelId);
       if (!game) {
         await interaction.reply({ content: 'No game in progress!', flags: [MessageFlags.Ephemeral] });
@@ -277,11 +364,13 @@ client.on(Events.InteractionCreate, async (interaction) => {
       }
 
       if (game.status !== 'selecting') {
+        console.log(`[Bot] Rejecting select: game status is ${game.status}`);
         await interaction.reply({ content: 'Cannot select a question right now!', flags: [MessageFlags.Ephemeral] });
         return;
       }
 
       if (game.currentPlayerId !== userId) {
+        console.log(`[Bot] Rejecting select: not ${userId}'s turn (current: ${game.currentPlayerId})`);
         await interaction.reply({ content: 'It\'s not your turn to select!', flags: [MessageFlags.Ephemeral] });
         return;
       }
@@ -297,63 +386,16 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         const clueAttachment = await createClueAttachment(question, category.name);
         await interaction.reply({ files: [clueAttachment] });
+        console.log(`[Bot] Posted clue for ${category.name} $${question.value}`);
 
-        // If not daily double, start accepting answers after 3 seconds
+        // If not daily double, post buzzer message
         if (!question.isDailyDouble) {
-          setTimeout(async () => {
-            game.status = 'answering';
-            await interaction.followUp({ content: '⏰ You have 15 seconds to answer! Type your answer in the chat.' });
-            
-            // Set 15-second timer
-            setTimeout(async () => {
-              if (game.status === 'answering' && game.selectedQuestion) {
-                // Time's up
-                game.selectedQuestion.isPlayed = true;
-                
-                const revealEmbed = renderAnswerReveal(game.selectedQuestion, []);
-                await interaction.followUp({ embeds: [revealEmbed] });
-
-                game.lastAnsweredQuestion = {
-                  question: game.selectedQuestion,
-                  correctPlayerIds: [],
-                  answers: [],
-                  isCorrected: false,
-                };
-
-                game.selectedQuestion = null;
-                game.selectedCategoryIndex = null;
-                game.selectedQuestionIndex = null;
-                game.status = 'selecting';
-
-                // Check if round is complete
-                const categories = game.round === 'jeopardy'
-                  ? game.board.jeopardyRound
-                  : game.board.doubleJeopardyRound;
-                
-                const isComplete = categories.every(cat => 
-                  cat.questions.every(q => q.isPlayed)
-                );
-
-                if (isComplete) {
-                  if (game.round === 'jeopardy') {
-                    game.round = 'double_jeopardy';
-                    await interaction.followUp({ content: '**Double Jeopardy!**' });
-                  } else {
-                    game.round = 'final_jeopardy';
-                    game.status = 'final_jeopardy_wager';
-                    
-                    const finalEmbed = renderFinalJeopardyCategory(game.board.finalJeopardy.category);
-                    await interaction.followUp({ embeds: [finalEmbed] });
-                    await interaction.followUp({ content: 'DM me your wagers!' });
-                    return;
-                  }
-                }
-
-                const boardAttachment = await createBoardAttachment(game);
-                await interaction.followUp({ files: [boardAttachment] });
-              }
-            }, 15000);
-          }, 3000);
+          const channel = await client.channels.fetch(channelId);
+          if (channel instanceof TextChannel || channel instanceof ThreadChannel) {
+            const emoji = getRandomEmoji(channel.guild);
+            const buzzMessage = await channel.send(`React with ${emoji} to buzz in and answer!`);
+            game.currentClueMessageId = buzzMessage.id;
+          }
         }
 
       } catch (error) {
@@ -389,31 +431,30 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
           setTimeout(async () => {
             game.status = 'answering';
+            game.currentAnsweringPlayerId = game.currentPlayerId;
+            if (game.currentPlayerId) {
+              game.attemptedPlayerIds.add(game.currentPlayerId);
+            }
             await interaction.followUp({ content: '⏰ You have 15 seconds to answer! Type your answer in the chat.' });
             
-            setTimeout(async () => {
+            const timeoutId = setTimeout(async () => {
               if (game.status === 'answering' && game.selectedQuestion) {
-                game.selectedQuestion.isPlayed = true;
+                const timedOutPlayerId = game.currentAnsweringPlayerId;
+                const result = gameManager.handleAnswerTimeout(game);
                 
-                const revealEmbed = renderAnswerReveal(game.selectedQuestion, []);
-                await interaction.followUp({ embeds: [revealEmbed] });
-
-                game.lastAnsweredQuestion = {
-                  question: game.selectedQuestion,
-                  correctPlayerIds: [],
-                  answers: [],
-                  isCorrected: false,
-                };
-
-                game.selectedQuestion = null;
-                game.selectedCategoryIndex = null;
-                game.selectedQuestionIndex = null;
-                game.status = 'selecting';
-
-                const boardAttachment = await createBoardAttachment(game);
-                await interaction.followUp({ files: [boardAttachment] });
+                const channel = await client.channels.fetch(channelId);
+                if (channel instanceof TextChannel || channel instanceof ThreadChannel) {
+                  if (timedOutPlayerId) {
+                    const points = game.selectedQuestion?.value || 0;
+                    await channel.send(`⏰ Time's up! <@${timedOutPlayerId}> loses $${points}.`);
+                  }
+                  
+                  await revealAnswerAndReset(game, channel);
+                }
               }
+              answerTimeouts.delete(channelId);
             }, 15000);
+            answerTimeouts.set(channelId, timeoutId);
           }, 3000);
         } else if (game.status === 'final_jeopardy_answering') {
           // All wagers placed - show clue
@@ -533,14 +574,27 @@ client.on(Events.MessageCreate, async (message) => {
   if (!game) return;
 
   if (game.status !== 'answering') return;
+  if (game.currentAnsweringPlayerId !== message.author.id) return;
 
-  if (!validateAnswerFormat(message.content)) return;
+  console.log(`[Bot] Answer from ${message.author.username}: "${message.content}"`);
+
+  if (!validateAnswerFormat(message.content)) {
+    await message.reply('Please phrase your answer as a question! (e.g., "What is...?")');
+    return;
+  }
+
+  // Clear timeout
+  const existingTimeout = answerTimeouts.get(message.channelId);
+  if (existingTimeout) clearTimeout(existingTimeout);
+  answerTimeouts.delete(message.channelId);
 
   try {
+    const selectedQuestionValue = game.selectedQuestion?.value || 0;
     const result = gameManager.submitAnswer(game, message.author.id, message.content, message.id);
+    console.log(`[Bot] Answer result: correct=${result.isCorrect}, allAttempted=${result.allAttempted}`);
     
     if (result.isCorrect && result.player) {
-      await message.reply(`✅ Correct! <@${result.player.userId}> gains $${game.selectedQuestion?.value || 0}`);
+      await message.reply(`✅ Correct! <@${result.player.userId}> gains $${selectedQuestionValue}`);
       
       // Show answer reveal
       if (game.lastAnsweredQuestion) {
@@ -554,20 +608,74 @@ client.on(Events.MessageCreate, async (message) => {
         await message.channel.send({ files: [boardAttachment] });
       }
     } else if (!result.isCorrect && result.player) {
-      await message.react('❌');
+      await message.reply(`❌ Wrong! You lose $${selectedQuestionValue}`);
+      
+      // Check if all players attempted
+      if (result.allAttempted) {
+        await revealAnswerAndReset(game, message.channel as TextChannel | ThreadChannel);
+      } else {
+        await postBuzzerMessage(game, message.channel as TextChannel | ThreadChannel);
+      }
     }
   } catch (error) {
     console.error('Error processing answer:', error);
   }
 });
 
-// Handle reactions for answer corrections
+// Handle reactions for buzzing in and answer corrections
 client.on(Events.MessageReactionAdd, async (reaction, user) => {
   if (user.bot) return;
-  if (reaction.emoji.name !== '✅') return;
 
   const game = gameManager.getGame(reaction.message.channelId);
   if (!game) return;
+
+  // Handle buzz-in reactions
+  if (game.status === 'reading' && game.currentClueMessageId === reaction.message.id) {
+    console.log(`[Bot] Reaction from ${user.username} on buzzer message`);
+    try {
+      gameManager.buzzIn(game, user.id);
+      
+      // Clear any existing timeout
+      const existingTimeout = answerTimeouts.get(reaction.message.channelId);
+      if (existingTimeout) clearTimeout(existingTimeout);
+      
+      const answerMessage = await reaction.message.channel.send(`⏰ <@${user.id}> has 15 seconds to answer! Type your answer in the chat.`);
+      console.log(`[Bot] Player ${user.id} assigned answering turn`);
+      
+      // Start 15-second timer
+      const timeoutId = setTimeout(async () => {
+        console.log(`[Bot] Answer timeout for player ${user.id}`);
+        if (game.status === 'answering' && game.selectedQuestion) {
+          const timedOutPlayerId = game.currentAnsweringPlayerId;
+          const points = game.selectedQuestion.value;
+          const result = gameManager.handleAnswerTimeout(game);
+          
+          const channel = reaction.message.channel as TextChannel | ThreadChannel;
+          
+          if (timedOutPlayerId) {
+            await channel.send(`⏰ Time's up! <@${timedOutPlayerId}> loses $${points}.`);
+          }
+          
+          if (result.allAttempted) {
+            console.log(`[Bot] All players attempted, revealing answer`);
+            await revealAnswerAndReset(game, channel);
+          } else {
+            console.log(`[Bot] Posting new buzzer message`);
+            await postBuzzerMessage(game, channel);
+          }
+        }
+        answerTimeouts.delete(reaction.message.channelId);
+      }, 15000);
+      
+      answerTimeouts.set(reaction.message.channelId, timeoutId);
+    } catch (error) {
+      console.log(`[Bot] Buzz-in rejected: ${(error as Error).message}`);
+    }
+    return;
+  }
+
+  // Handle answer corrections
+  if (reaction.emoji.name !== '✅') return;
 
   // Only allow corrections before next question is selected
   if (game.status !== 'selecting') return;
@@ -576,6 +684,7 @@ client.on(Events.MessageReactionAdd, async (reaction, user) => {
   if (user.id === reaction.message.author?.id) return;
 
   try {
+    console.log(`[Bot] Correction reaction on message ${reaction.message.id}`);
     const result = gameManager.correctAnswer(game, reaction.message.id);
     
     if (result.success && result.player) {

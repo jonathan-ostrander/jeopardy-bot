@@ -80,6 +80,9 @@ export interface GameState {
   channelId: string;
   threadId: string | null;
   hostId: string;
+  currentAnsweringPlayerId: string | null;
+  attemptedPlayerIds: Set<string>;
+  currentClueMessageId: string | null;
 }
 
 export interface AnswerCheck {
