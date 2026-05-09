@@ -3,11 +3,12 @@ import { Category } from '../../shared/types';
 
 const JEOPARDY_BLUE = '#071277';
 const PLAYED_BG = '#333333';
-const TEXT_GOLD = '#FFD700';
+const TEXT_GOLD = '#CEA15A';
 const TEXT_WHITE = '#FFFFFF';
 const BORDER_COLOR = '#000033';
 
-const FONT_FAMILY = "'ITC Korinna', Georgia, 'Times New Roman', serif";
+const FONT_KORINNA = "'ITC Korinna', Georgia, 'Times New Roman', serif";
+const FONT_SWISS = "'Swiss 911 Compressed', Arial, sans-serif";
 
 function escapeXml(text: string): string {
   return text
@@ -75,13 +76,14 @@ function renderSvgTextLines(
   centerY: number,
   fontSize: number,
   color: string,
+  fontFamily: string = FONT_KORINNA,
   fontWeight: string = 'bold'
 ): string {
   const lineHeight = fontSize * 1.3;
   const totalHeight = lines.length * lineHeight;
   const startY = centerY - totalHeight / 2 + lineHeight / 2;
 
-  let svg = `<text x="${x}" y="${startY}" font-family="${FONT_FAMILY}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${color}" text-anchor="middle" filter="url(#textShadow)">`;
+  let svg = `<text x="${x}" y="${startY}" font-family="${fontFamily}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${color}" text-anchor="middle" filter="url(#textShadow)">`;
   lines.forEach((line, i) => {
     const dy = i === 0 ? 0 : lineHeight;
     svg += `<tspan x="${x}" dy="${dy}">${escapeXml(line)}</tspan>`;
@@ -133,7 +135,7 @@ export async function generateBoardImage(
     const maxTextWidth = cellWidth - 20;
     const maxTextHeight = headerHeight - 30;
     const { lines, fontSize } = fitText(category.name, maxTextWidth, maxTextHeight, 28, 14);
-    svg += renderSvgTextLines(lines, textX, textCenterY, fontSize, TEXT_WHITE);
+    svg += renderSvgTextLines(lines, textX, textCenterY, fontSize, TEXT_WHITE, FONT_SWISS);
   }
 
   // Value cells
@@ -150,7 +152,7 @@ export async function generateBoardImage(
       if (!question.isPlayed) {
         const textX = col * cellWidth + cellWidth / 2;
         const textY = headerHeight + row * cellHeight + cellHeight / 2;
-        svg += `<text x="${textX}" y="${textY}" font-family="${FONT_FAMILY}" font-size="48" font-weight="bold" fill="${TEXT_GOLD}" text-anchor="middle" dominant-baseline="middle" filter="url(#textShadow)">$${question.value}</text>`;
+        svg += `<text x="${textX}" y="${textY}" font-family="${FONT_SWISS}" font-size="48" font-weight="bold" fill="${TEXT_GOLD}" text-anchor="middle" dominant-baseline="middle" filter="url(#textShadow)">$${question.value}</text>`;
       }
     }
   }
@@ -169,7 +171,7 @@ export async function generateBoardImage(
   // Footer
   if (currentPlayerUsername) {
     const footerY = height - footerHeight / 2;
-    svg += `<text x="${width / 2}" y="${footerY}" font-family="${FONT_FAMILY}" font-size="28" font-weight="bold" fill="${TEXT_GOLD}" text-anchor="middle" dominant-baseline="middle" filter="url(#textShadow)">Current Player: ${escapeXml(currentPlayerUsername)}</text>`;
+    svg += `<text x="${width / 2}" y="${footerY}" font-family="${FONT_KORINNA}" font-size="28" font-weight="bold" fill="${TEXT_GOLD}" text-anchor="middle" dominant-baseline="middle" filter="url(#textShadow)">Current Player: ${escapeXml(currentPlayerUsername)}</text>`;
   }
 
   svg += '</svg>';
@@ -201,7 +203,7 @@ export async function generateClueImage(
   svg += `<rect width="${width}" height="${height}" fill="${JEOPARDY_BLUE}"/>`;
 
   // Header
-  svg += `<text x="${width / 2}" y="50" font-family="${FONT_FAMILY}" font-size="36" font-weight="bold" fill="${TEXT_GOLD}" text-anchor="middle" filter="url(#textShadow)">${escapeXml(headerText)}</text>`;
+  svg += `<text x="${width / 2}" y="50" font-family="${FONT_SWISS}" font-size="36" font-weight="bold" fill="${TEXT_GOLD}" text-anchor="middle" filter="url(#textShadow)">${escapeXml(headerText)}</text>`;
 
   // Clue text
   const textCenterY = height / 2;
