@@ -77,13 +77,15 @@ function renderSvgTextLines(
   fontSize: number,
   color: string,
   fontFamily: string = FONT_KORINNA,
-  fontWeight: string = 'bold'
+  fontWeight: string = 'bold',
+  dominantBaseline: boolean = false
 ): string {
   const lineHeight = fontSize * 1.3;
   const totalHeight = lines.length * lineHeight;
   const startY = centerY - totalHeight / 2 + lineHeight / 2;
 
-  let svg = `<text x="${x}" y="${startY}" font-family="${fontFamily}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${color}" text-anchor="middle" filter="url(#textShadow)">`;
+  const baselineAttr = dominantBaseline ? ' dominant-baseline="middle"' : '';
+  let svg = `<text x="${x}" y="${startY}" font-family="${fontFamily}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${color}" text-anchor="middle"${baselineAttr} filter="url(#textShadow)">`;
   lines.forEach((line, i) => {
     const dy = i === 0 ? 0 : lineHeight;
     svg += `<tspan x="${x}" dy="${dy}">${escapeXml(line)}</tspan>`;
@@ -134,8 +136,8 @@ export async function generateBoardImage(
     const textCenterY = headerHeight / 2;
     const maxTextWidth = cellWidth - 20;
     const maxTextHeight = headerHeight - 30;
-    const { lines, fontSize } = fitText(category.name, maxTextWidth, maxTextHeight, 32, 16);
-    svg += renderSvgTextLines(lines, textX, textCenterY, fontSize, TEXT_WHITE, FONT_SWISS, 'normal');
+    const { lines, fontSize } = fitText(category.name, maxTextWidth, maxTextHeight, 40, 18);
+    svg += renderSvgTextLines(lines, textX, textCenterY, fontSize, TEXT_WHITE, FONT_SWISS, 'normal', true);
   }
 
   // Value cells
@@ -152,7 +154,7 @@ export async function generateBoardImage(
       if (!question.isPlayed) {
         const textX = col * cellWidth + cellWidth / 2;
         const textY = headerHeight + row * cellHeight + cellHeight / 2;
-        svg += `<text x="${textX}" y="${textY}" font-family="${FONT_SWISS}" font-size="52" fill="${TEXT_GOLD}" text-anchor="middle" dominant-baseline="middle" filter="url(#textShadow)">$${question.value}</text>`;
+        svg += `<text x="${textX}" y="${textY}" font-family="${FONT_SWISS}" font-size="60" fill="${TEXT_GOLD}" text-anchor="middle" dominant-baseline="middle" filter="url(#textShadow)">$${question.value}</text>`;
       }
     }
   }
