@@ -134,8 +134,8 @@ export async function generateBoardImage(
     const textCenterY = headerHeight / 2;
     const maxTextWidth = cellWidth - 20;
     const maxTextHeight = headerHeight - 30;
-    const { lines, fontSize } = fitText(category.name, maxTextWidth, maxTextHeight, 28, 14);
-    svg += renderSvgTextLines(lines, textX, textCenterY, fontSize, TEXT_WHITE, FONT_SWISS);
+    const { lines, fontSize } = fitText(category.name, maxTextWidth, maxTextHeight, 32, 16);
+    svg += renderSvgTextLines(lines, textX, textCenterY, fontSize, TEXT_WHITE, FONT_SWISS, 'normal');
   }
 
   // Value cells
@@ -152,7 +152,7 @@ export async function generateBoardImage(
       if (!question.isPlayed) {
         const textX = col * cellWidth + cellWidth / 2;
         const textY = headerHeight + row * cellHeight + cellHeight / 2;
-        svg += `<text x="${textX}" y="${textY}" font-family="${FONT_SWISS}" font-size="48" font-weight="bold" fill="${TEXT_GOLD}" text-anchor="middle" dominant-baseline="middle" filter="url(#textShadow)">$${question.value}</text>`;
+        svg += `<text x="${textX}" y="${textY}" font-family="${FONT_SWISS}" font-size="52" fill="${TEXT_GOLD}" text-anchor="middle" dominant-baseline="middle" filter="url(#textShadow)">$${question.value}</text>`;
       }
     }
   }
@@ -203,7 +203,7 @@ export async function generateClueImage(
   svg += `<rect width="${width}" height="${height}" fill="${JEOPARDY_BLUE}"/>`;
 
   // Header
-  svg += `<text x="${width / 2}" y="50" font-family="${FONT_SWISS}" font-size="36" font-weight="bold" fill="${TEXT_GOLD}" text-anchor="middle" filter="url(#textShadow)">${escapeXml(headerText)}</text>`;
+  svg += `<text x="${width / 2}" y="50" font-family="${FONT_SWISS}" font-size="40" fill="${TEXT_GOLD}" text-anchor="middle" filter="url(#textShadow)">${escapeXml(headerText)}</text>`;
 
   // Clue text
   const textCenterY = height / 2;
