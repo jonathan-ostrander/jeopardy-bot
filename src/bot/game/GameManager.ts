@@ -66,8 +66,8 @@ export class GameManager {
     return player;
   }
 
-  startGame(game: GameState): void {
-    if (game.players.length < 2) {
+  startGame(game: GameState, force = false): void {
+    if (!force && game.players.length < 2) {
       throw new Error('Need at least 2 players to start');
     }
 

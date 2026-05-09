@@ -14,7 +14,8 @@ import {
   DMChannel,
   ReactionEmoji,
   MessageReaction,
-  User
+  User,
+  MessageFlags
 } from 'discord.js';
 import { config } from 'dotenv';
 import { GameManager } from './game/GameManager';
@@ -62,8 +63,8 @@ const commands = [
     .setDescription('Start a new Jeopardy game')
     .addSubcommand(subcommand =>
       subcommand
-        .setName('start')
-        .setDescription('Start a new game')
+        .setName('new')
+        .setDescription('Create a new game')
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -79,6 +80,11 @@ const commands = [
       subcommand
         .setName('scores')
         .setDescription('Show current scores')
+    )
+    .addSubcommand(subcommand =>
+      subcommand
+        .setName('begin')
+        .setDescription('Begin the game (host only)')
     )
     .addSubcommand(subcommand =>
       subcommand
@@ -150,11 +156,11 @@ client.on(Events.InteractionCreate, async (interaction) => {
     if (commandName === 'jeopardy') {
       const subcommand = options.getSubcommand();
 
-      if (subcommand === 'start') {
+      if (subcommand === 'new') {
         // Check if game already exists
         const existingGame = gameManager.getGame(channelId);
         if (existingGame) {
-          await interaction.reply({ content: 'A game is already in progress!', ephemeral: true });
+          await interaction.reply({ content: 'A game is already in progress!', flags: [MessageFlags.Ephemeral] });
           return;
         }
 
@@ -186,17 +192,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
       } else if (subcommand === 'join') {
         const game = gameManager.getGame(channelId);
         if (!game) {
-          await interaction.reply({ content: 'No game in progress! Start one with `/jeopardy start`', ephemeral: true });
+          await interaction.reply({ content: 'No game in progress! Create one with `/jeopardy new`', flags: [MessageFlags.Ephemeral] });
           return;
         }
 
         if (game.status !== 'waiting') {
-          await interaction.reply({ content: 'Game has already started!', ephemeral: true });
+          await interaction.reply({ content: 'Game has already started!', flags: [MessageFlags.Ephemeral] });
           return;
         }
 
         const player = gameManager.addPlayer(game, userId, username);
-        await interaction.reply({ content: `<@${userId}> has joined the game! (${game.players.length} players)`, ephemeral: false });
+        await interaction.reply({ content: `<@${userId}> has joined the game! (${game.players.length} players)` });
 
         // Auto-start if 3+ players
         if (game.players.length >= 3) {
@@ -208,7 +214,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
       } else if (subcommand === 'board') {
         const game = gameManager.getGame(channelId);
         if (!game) {
-          await interaction.reply({ content: 'No game in progress!', ephemeral: true });
+          await interaction.reply({ content: 'No game in progress!', flags: [MessageFlags.Ephemeral] });
           return;
         }
 
@@ -218,17 +224,44 @@ client.on(Events.InteractionCreate, async (interaction) => {
       } else if (subcommand === 'scores') {
         const game = gameManager.getGame(channelId);
         if (!game) {
-          await interaction.reply({ content: 'No game in progress!', ephemeral: true });
+          await interaction.reply({ content: 'No game in progress!', flags: [MessageFlags.Ephemeral] });
           return;
         }
 
         const scoresEmbed = renderScores(game.players);
         await interaction.reply({ embeds: [scoresEmbed] });
 
+      } else if (subcommand === 'begin') {
+        const game = gameManager.getGame(channelId);
+        if (!game) {
+          await interaction.reply({ content: 'No game in progress!', flags: [MessageFlags.Ephemeral] });
+          return;
+        }
+
+        if (game.hostId !== userId) {
+          await interaction.reply({ content: 'Only the host can begin the game!', flags: [MessageFlags.Ephemeral] });
+          return;
+        }
+
+        if (game.status !== 'waiting') {
+          await interaction.reply({ content: 'Game has already started!', flags: [MessageFlags.Ephemeral] });
+          return;
+        }
+
+        // Auto-add host if they haven't joined
+        const hostPlayer = game.players.find(p => p.userId === userId);
+        if (!hostPlayer) {
+          gameManager.addPlayer(game, userId, username);
+        }
+
+        gameManager.startGame(game, true);
+        const boardAttachment = await createBoardAttachment(game);
+        await interaction.reply({ files: [boardAttachment] });
+
       } else if (subcommand === 'end') {
         const game = gameManager.getGame(channelId);
         if (!game) {
-          await interaction.reply({ content: 'No game in progress!', ephemeral: true });
+          await interaction.reply({ content: 'No game in progress!', flags: [MessageFlags.Ephemeral] });
           return;
         }
 
@@ -239,17 +272,17 @@ client.on(Events.InteractionCreate, async (interaction) => {
     } else if (commandName === 'select') {
       const game = gameManager.getGame(channelId);
       if (!game) {
-        await interaction.reply({ content: 'No game in progress!', ephemeral: true });
+        await interaction.reply({ content: 'No game in progress!', flags: [MessageFlags.Ephemeral] });
         return;
       }
 
       if (game.status !== 'selecting') {
-        await interaction.reply({ content: 'Cannot select a question right now!', ephemeral: true });
+        await interaction.reply({ content: 'Cannot select a question right now!', flags: [MessageFlags.Ephemeral] });
         return;
       }
 
       if (game.currentPlayerId !== userId) {
-        await interaction.reply({ content: 'It\'s not your turn to select!', ephemeral: true });
+        await interaction.reply({ content: 'It\'s not your turn to select!', flags: [MessageFlags.Ephemeral] });
         return;
       }
 
@@ -324,18 +357,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
 
       } catch (error) {
-        await interaction.reply({ content: `Error: ${(error as Error).message}`, ephemeral: true });
+        await interaction.reply({ content: `Error: ${(error as Error).message}`, flags: [MessageFlags.Ephemeral] });
       }
 
     } else if (commandName === 'wager') {
       const game = gameManager.getGame(channelId);
       if (!game) {
-        await interaction.reply({ content: 'No game in progress!', ephemeral: true });
+        await interaction.reply({ content: 'No game in progress!', flags: [MessageFlags.Ephemeral] });
         return;
       }
 
       if (game.status !== 'daily_double_wager' && game.status !== 'final_jeopardy_wager') {
-        await interaction.reply({ content: 'Cannot place a wager right now!', ephemeral: true });
+        await interaction.reply({ content: 'Cannot place a wager right now!', flags: [MessageFlags.Ephemeral] });
         return;
       }
 
@@ -343,7 +376,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
       try {
         gameManager.submitWager(game, userId, amount);
-        await interaction.reply({ content: `Wager of $${amount} placed!`, ephemeral: true });
+        await interaction.reply({ content: `Wager of $${amount} placed!`, flags: [MessageFlags.Ephemeral] });
 
         if (game.status === 'reading' && game.selectedQuestion) {
           // Daily double - show the question
@@ -397,14 +430,14 @@ client.on(Events.InteractionCreate, async (interaction) => {
         }
 
       } catch (error) {
-        await interaction.reply({ content: `Error: ${(error as Error).message}`, ephemeral: true });
+        await interaction.reply({ content: `Error: ${(error as Error).message}`, flags: [MessageFlags.Ephemeral] });
       }
     }
 
   } catch (error) {
     console.error('Error handling interaction:', error);
     if (!interaction.replied) {
-      await interaction.reply({ content: 'An error occurred!', ephemeral: true });
+      await interaction.reply({ content: 'An error occurred!', flags: [MessageFlags.Ephemeral] });
     }
   }
 });
