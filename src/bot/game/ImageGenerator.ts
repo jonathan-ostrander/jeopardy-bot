@@ -1,13 +1,11 @@
 import sharp from 'sharp';
 import { Category } from '../../shared/types';
 
-const BOARD_BG = '#000000';
-const CELL_BG = '#071277';
+const JEOPARDY_BLUE = '#071277';
 const PLAYED_BG = '#333333';
 const TEXT_GOLD = '#FFD700';
 const TEXT_WHITE = '#FFFFFF';
 const BORDER_COLOR = '#000033';
-const CLUE_BG = '#060CE9';
 
 const FONT_FAMILY = "'ITC Korinna', Georgia, 'Times New Roman', serif";
 
@@ -83,7 +81,7 @@ function renderSvgTextLines(
   const totalHeight = lines.length * lineHeight;
   const startY = centerY - totalHeight / 2 + lineHeight / 2;
 
-  let svg = `<text x="${x}" y="${startY}" font-family="${FONT_FAMILY}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${color}" text-anchor="middle">`;
+  let svg = `<text x="${x}" y="${startY}" font-family="${FONT_FAMILY}" font-size="${fontSize}" font-weight="${fontWeight}" fill="${color}" text-anchor="middle" filter="url(#textShadow)">`;
   lines.forEach((line, i) => {
     const dy = i === 0 ? 0 : lineHeight;
     svg += `<tspan x="${x}" dy="${dy}">${escapeXml(line)}</tspan>`;
@@ -107,32 +105,31 @@ export async function generateBoardImage(
   const height = 900;
   const cols = 6;
   const rows = 5;
-  const titleHeight = 60;
   const headerHeight = 130;
   const footerHeight = currentPlayerUsername ? 60 : 0;
-  const gridHeight = height - titleHeight - headerHeight - footerHeight;
+  const gridHeight = height - headerHeight - footerHeight;
   const cellWidth = width / cols;
   const cellHeight = gridHeight / rows;
   const borderWidth = 4;
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">`;
-  svg += `<rect width="${width}" height="${height}" fill="${BOARD_BG}"/>`;
-
-  // Title
-  const roundName = round === 'jeopardy' ? 'Jeopardy!' : 'Double Jeopardy!';
-  svg += `<text x="${width / 2}" y="${titleHeight / 2}" font-family="${FONT_FAMILY}" font-size="40" font-weight="bold" fill="${TEXT_GOLD}" text-anchor="middle" dominant-baseline="middle">${escapeXml(roundName)}</text>`;
+  
+  // Define text shadow filter
+  svg += `<defs><filter id="textShadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="2" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.8"/></filter></defs>`;
+  
+  svg += `<rect width="${width}" height="${height}" fill="${JEOPARDY_BLUE}"/>`;
 
   // Category cells
   for (let col = 0; col < cols; col++) {
     const x = col * cellWidth + borderWidth;
-    const y = titleHeight + borderWidth;
+    const y = borderWidth;
     const w = cellWidth - borderWidth * 2;
     const h = headerHeight - borderWidth * 2;
-    svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${CELL_BG}"/>`;
+    svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${JEOPARDY_BLUE}"/>`;
 
     const category = categories[col];
     const textX = col * cellWidth + cellWidth / 2;
-    const textCenterY = titleHeight + headerHeight / 2;
+    const textCenterY = headerHeight / 2;
     const maxTextWidth = cellWidth - 20;
     const maxTextHeight = headerHeight - 30;
     const { lines, fontSize } = fitText(category.name, maxTextWidth, maxTextHeight, 28, 14);
@@ -144,16 +141,16 @@ export async function generateBoardImage(
     for (let col = 0; col < cols; col++) {
       const question = categories[col].questions[row];
       const x = col * cellWidth + borderWidth;
-      const y = titleHeight + headerHeight + row * cellHeight + borderWidth;
+      const y = headerHeight + row * cellHeight + borderWidth;
       const w = cellWidth - borderWidth * 2;
       const h = cellHeight - borderWidth * 2;
-      const fill = question.isPlayed ? PLAYED_BG : CELL_BG;
+      const fill = question.isPlayed ? PLAYED_BG : JEOPARDY_BLUE;
       svg += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${fill}"/>`;
 
       if (!question.isPlayed) {
         const textX = col * cellWidth + cellWidth / 2;
-        const textY = titleHeight + headerHeight + row * cellHeight + cellHeight / 2;
-        svg += `<text x="${textX}" y="${textY}" font-family="${FONT_FAMILY}" font-size="48" font-weight="bold" fill="${TEXT_GOLD}" text-anchor="middle" dominant-baseline="middle">$${question.value}</text>`;
+        const textY = headerHeight + row * cellHeight + cellHeight / 2;
+        svg += `<text x="${textX}" y="${textY}" font-family="${FONT_FAMILY}" font-size="48" font-weight="bold" fill="${TEXT_GOLD}" text-anchor="middle" dominant-baseline="middle" filter="url(#textShadow)">$${question.value}</text>`;
       }
     }
   }
@@ -161,18 +158,18 @@ export async function generateBoardImage(
   // Grid borders
   for (let i = 0; i <= cols; i++) {
     const x = i * cellWidth;
-    svg += `<line x1="${x}" y1="${titleHeight}" x2="${x}" y2="${titleHeight + headerHeight + rows * cellHeight}" stroke="${BORDER_COLOR}" stroke-width="${borderWidth}"/>`;
+    svg += `<line x1="${x}" y1="0" x2="${x}" y2="${headerHeight + rows * cellHeight}" stroke="${BORDER_COLOR}" stroke-width="${borderWidth}"/>`;
   }
 
   for (let i = 0; i <= rows + 1; i++) {
-    const y = i === 0 ? titleHeight : titleHeight + headerHeight + (i - 1) * cellHeight;
+    const y = i === 0 ? 0 : headerHeight + (i - 1) * cellHeight;
     svg += `<line x1="0" y1="${y}" x2="${width}" y2="${y}" stroke="${BORDER_COLOR}" stroke-width="${borderWidth}"/>`;
   }
 
   // Footer
   if (currentPlayerUsername) {
     const footerY = height - footerHeight / 2;
-    svg += `<text x="${width / 2}" y="${footerY}" font-family="${FONT_FAMILY}" font-size="28" font-weight="bold" fill="${TEXT_GOLD}" text-anchor="middle" dominant-baseline="middle">Current Player: ${escapeXml(currentPlayerUsername)}</text>`;
+    svg += `<text x="${width / 2}" y="${footerY}" font-family="${FONT_FAMILY}" font-size="28" font-weight="bold" fill="${TEXT_GOLD}" text-anchor="middle" dominant-baseline="middle" filter="url(#textShadow)">Current Player: ${escapeXml(currentPlayerUsername)}</text>`;
   }
 
   svg += '</svg>';
@@ -197,10 +194,14 @@ export async function generateClueImage(
   const { lines, fontSize } = fitText(clue, maxTextWidth, maxTextHeight, 52, 20);
 
   let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">`;
-  svg += `<rect width="${width}" height="${height}" fill="${CLUE_BG}"/>`;
+  
+  // Define text shadow filter
+  svg += `<defs><filter id="textShadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="2" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.8"/></filter></defs>`;
+  
+  svg += `<rect width="${width}" height="${height}" fill="${JEOPARDY_BLUE}"/>`;
 
   // Header
-  svg += `<text x="${width / 2}" y="50" font-family="${FONT_FAMILY}" font-size="36" font-weight="bold" fill="${TEXT_GOLD}" text-anchor="middle">${escapeXml(headerText)}</text>`;
+  svg += `<text x="${width / 2}" y="50" font-family="${FONT_FAMILY}" font-size="36" font-weight="bold" fill="${TEXT_GOLD}" text-anchor="middle" filter="url(#textShadow)">${escapeXml(headerText)}</text>`;
 
   // Clue text
   const textCenterY = height / 2;
