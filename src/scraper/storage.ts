@@ -63,6 +63,29 @@ export function loadCategories(round: 'jeopardy' | 'double_jeopardy'): Category[
   });
 }
 
+export function loadRandomCategories(round: 'jeopardy' | 'double_jeopardy', count: number): Category[] {
+  const dir = join(CATEGORIES_DIR, round);
+  
+  if (!existsSync(dir)) {
+    return [];
+  }
+
+  const files = readdirSync(dir).filter(f => f.endsWith('.json'));
+  
+  if (files.length === 0) {
+    return [];
+  }
+
+  // Shuffle filenames and pick only what we need
+  const shuffled = [...files].sort(() => Math.random() - 0.5);
+  const selected = shuffled.slice(0, Math.min(count, files.length));
+  
+  return selected.map(file => {
+    const content = readFileSync(join(dir, file), 'utf-8');
+    return JSON.parse(content) as Category;
+  });
+}
+
 export function loadFinalJeopardyQuestions(): FinalJeopardy[] {
   const dir = join(CATEGORIES_DIR, 'final_jeopardy');
   
@@ -76,6 +99,24 @@ export function loadFinalJeopardyQuestions(): FinalJeopardy[] {
     const content = readFileSync(join(dir, file), 'utf-8');
     return JSON.parse(content) as FinalJeopardy;
   });
+}
+
+export function loadRandomFinalJeopardy(): FinalJeopardy | null {
+  const dir = join(CATEGORIES_DIR, 'final_jeopardy');
+  
+  if (!existsSync(dir)) {
+    return null;
+  }
+
+  const files = readdirSync(dir).filter(f => f.endsWith('.json'));
+  
+  if (files.length === 0) {
+    return null;
+  }
+
+  const randomFile = files[Math.floor(Math.random() * files.length)];
+  const content = readFileSync(join(dir, randomFile), 'utf-8');
+  return JSON.parse(content) as FinalJeopardy;
 }
 
 function sanitizeFileName(name: string): string {

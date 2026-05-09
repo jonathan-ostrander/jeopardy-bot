@@ -9,7 +9,7 @@ import {
   LastAnsweredQuestion,
   PlayerAnswer
 } from '../shared/types';
-import { loadCategories, loadFinalJeopardyQuestions } from '../../scraper/storage';
+import { loadRandomCategories, loadRandomFinalJeopardy } from '../../scraper/storage';
 import { checkAnswer, validateAnswerFormat } from './AnswerValidator';
 
 export class GameManager {
@@ -453,11 +453,14 @@ export class GameManager {
   }
 
   private generateBoard(): GameBoard {
-    const jeopardyCategories = this.getRandomCategories('jeopardy', 6);
-    const doubleJeopardyCategories = this.getRandomCategories('double_jeopardy', 6);
-    const finalJeopardyQuestions = loadFinalJeopardyQuestions();
+    console.log('[GameManager] Starting board generation...');
+    const startTime = Date.now();
     
-    if (jeopardyCategories.length < 6 || doubleJeopardyCategories.length < 6 || finalJeopardyQuestions.length === 0) {
+    const jeopardyCategories = loadRandomCategories('jeopardy', 6);
+    const doubleJeopardyCategories = loadRandomCategories('double_jeopardy', 6);
+    const finalJeopardy = loadRandomFinalJeopardy();
+    
+    if (jeopardyCategories.length < 6 || doubleJeopardyCategories.length < 6 || !finalJeopardy) {
       throw new Error('Not enough categories available. Please run the scraper first.');
     }
 
@@ -465,7 +468,8 @@ export class GameManager {
     this.assignDailyDoubles(jeopardyCategories, 1);
     this.assignDailyDoubles(doubleJeopardyCategories, 2);
 
-    const finalJeopardy = finalJeopardyQuestions[Math.floor(Math.random() * finalJeopardyQuestions.length)];
+    const duration = Date.now() - startTime;
+    console.log(`[GameManager] Board generation complete (${duration}ms)`);
 
     return {
       id: `game_${Date.now()}`,
@@ -473,18 +477,6 @@ export class GameManager {
       doubleJeopardyRound: doubleJeopardyCategories,
       finalJeopardy,
     };
-  }
-
-  private getRandomCategories(round: 'jeopardy' | 'double_jeopardy', count: number): Category[] {
-    const categories = loadCategories(round);
-    
-    if (categories.length < count) {
-      return categories;
-    }
-
-    // Shuffle and pick
-    const shuffled = [...categories].sort(() => Math.random() - 0.5);
-    return shuffled.slice(0, count);
   }
 
   private assignDailyDoubles(categories: Category[], count: number): void {
