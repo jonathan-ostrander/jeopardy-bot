@@ -226,7 +226,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
   const userId = interaction.user.id;
   const username = interaction.user.username;
 
-  console.log(`[Bot] Command: ${commandName}${options.getSubcommand ? ' ' + options.getSubcommand() : ''} from ${username} (${userId}) in channel ${channelId}`);
+  const subcommand = commandName === 'jeopardy' && options.getSubcommand ? options.getSubcommand() : '';
+  console.log(`[Bot] Command: ${commandName}${subcommand ? ' ' + subcommand : ''} from ${username} (${userId}) in channel ${channelId}`);
 
   try {
     if (commandName === 'jeopardy') {
