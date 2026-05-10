@@ -63,6 +63,21 @@ async function postBuzzerMessage(game: GameState, channel: TextChannel | ThreadC
   const buzzMessage = await channel.send(`React with ${emoji} to buzz in and answer!`);
   game.currentClueMessageId = buzzMessage.id;
   game.status = 'reading';
+
+  // Start 15-second buzz-in timeout
+  const existingTimeout = answerTimeouts.get(channel.id);
+  if (existingTimeout) clearTimeout(existingTimeout);
+
+  const timeoutId = setTimeout(async () => {
+    if (game.status === 'reading' && game.selectedQuestion) {
+      console.log(`[Bot] Buzz-in timeout - no one buzzed in`);
+      await channel.send(`⏰ Time's up! No one buzzed in.`);
+      await revealAnswerAndReset(game, channel);
+    }
+    answerTimeouts.delete(channel.id);
+  }, 15000);
+
+  answerTimeouts.set(channel.id, timeoutId);
 }
 
 async function revealAnswerAndReset(game: GameState, channel: TextChannel | ThreadChannel) {
@@ -393,9 +408,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
         if (!question.isDailyDouble) {
           const channel = await client.channels.fetch(channelId);
           if (channel instanceof TextChannel || channel instanceof ThreadChannel) {
-            const emoji = getRandomEmoji(channel.guild);
-            const buzzMessage = await channel.send(`React with ${emoji} to buzz in and answer!`);
-            game.currentClueMessageId = buzzMessage.id;
+            await postBuzzerMessage(game, channel);
           }
         }
 
