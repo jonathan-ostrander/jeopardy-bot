@@ -4,7 +4,7 @@ services:
   jeopardy:
     build:
       context: .
-      target: development
+      target: production
     container_name: jeopardy
     restart: unless-stopped
     environment:
@@ -15,15 +15,8 @@ services:
       - PORT=${PORT:-3000}
       - ANSWER_SIMILARITY_THRESHOLD=${ANSWER_SIMILARITY_THRESHOLD:-0.8}
     volumes:
-      # Mount source code for hot reload
-      - ./src:/usr/src/app/src:ro
-      # Persist node_modules so they don't get overwritten by bind mount
-      - node_modules:/usr/src/app/node_modules
-      - client_node_modules:/usr/src/app/src/activity/client/node_modules
-      # Mount data directory for persistence
+      # Only mount data directory in production
       - ./src/shared/data:/usr/src/app/src/shared/data
-    ports:
-      - "${PORT:-3000}:3000"
     networks:
       - caddy
 
@@ -39,10 +32,6 @@ services:
     command: ["bun", "run", "dist/scraper/index.js", "--recent", "10"]
     profiles:
       - scraper
-
-volumes:
-  node_modules:
-  client_node_modules:
 
 networks:
   caddy:
