@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { generateAnswerSvg } from '../svgRenderer';
+import { PublicPlayer } from '../types';
 
 interface ResultOverlayProps {
   answer: string;
@@ -7,6 +8,7 @@ interface ResultOverlayProps {
   value: number;
   isDailyDouble: boolean;
   correctPlayerIds: string[];
+  players: PublicPlayer[];
   onDismiss: () => void;
 }
 
@@ -16,6 +18,7 @@ export const ResultOverlay: React.FC<ResultOverlayProps> = ({
   value,
   isDailyDouble,
   correctPlayerIds,
+  players,
   onDismiss,
 }) => {
   const [countdown, setCountdown] = useState(3);
@@ -47,7 +50,12 @@ export const ResultOverlay: React.FC<ResultOverlayProps> = ({
       </div>
       <div className="result-players">
         {correctPlayerIds.length > 0 ? (
-          <p>Correct: {correctPlayerIds.join(', ')}</p>
+          <p>
+            Correct:{' '}
+            {correctPlayerIds
+              .map((id) => players.find((p) => p.userId === id)?.username || id)
+              .join(', ')}
+          </p>
         ) : (
           <p>No one got it right!</p>
         )}

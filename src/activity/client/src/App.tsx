@@ -89,6 +89,7 @@ const App: FC = () => {
                 value={gameState.lastQuestionValue || 0}
                 isDailyDouble={gameState.lastQuestionIsDailyDouble}
                 correctPlayerIds={gameState.correctPlayerIds}
+                players={gameState.players}
                 onDismiss={() => sendAction('dismiss_result')}
               />
             )}
