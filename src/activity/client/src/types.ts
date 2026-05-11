@@ -96,6 +96,7 @@ export type GameActionType =
   | 'buzz'
   | 'answer'
   | 'wager'
+  | 'pass'
   | 'leave'
   | 'dismiss_result';
 

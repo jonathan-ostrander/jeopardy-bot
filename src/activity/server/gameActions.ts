@@ -33,6 +33,9 @@ export class GameActionHandler {
         case 'answer':
           this.handleAnswer(game, userId, action.payload);
           break;
+        case 'pass':
+          this.handlePass(game, userId);
+          break;
         case 'wager':
           this.handleWager(game, userId, action.payload);
           break;
@@ -46,10 +49,13 @@ export class GameActionHandler {
           throw new Error(`Unknown action type: ${action.type}`);
       }
 
+      // Handle timers first so broadcast includes correct timeRemaining
+      this.updateTimer(game, broadcast);
+
       // Broadcast updated state
       const publicState = sanitizeGameState(game);
       publicState.timeRemaining = this.getTimeRemaining(game.channelId);
-      console.log(`[ActionHandler] Broadcasting state after ${action.type}, status: ${publicState.status}`);
+      console.log(`[ActionHandler] Broadcasting state after ${action.type}, status: ${publicState.status}, timeRemaining: ${publicState.timeRemaining}`);
       broadcast(publicState);
 
       // Send private state to each player
@@ -57,9 +63,6 @@ export class GameActionHandler {
         const privateState = getPrivatePlayerState(game, player.userId);
         sendPrivate(player.userId, privateState);
       }
-
-      // Handle timers
-      this.updateTimer(game, broadcast);
 
     } catch (error) {
       console.error(`[ActionHandler] Error: ${error}`);
@@ -110,6 +113,42 @@ export class GameActionHandler {
 
   private handleLeave(game: GameState, userId: string): void {
     this.gameManager.removePlayer(game, userId);
+  }
+
+  private handlePass(game: GameState, userId: string): void {
+    console.log(`[ActionHandler] Player ${userId} passed`);
+    if (game.status !== 'reading') {
+      throw new Error('Can only pass during reading phase');
+    }
+
+    if (game.attemptedPlayerIds.has(userId)) {
+      throw new Error('You already passed or buzzed on this question');
+    }
+
+    game.attemptedPlayerIds.add(userId);
+    console.log(`[ActionHandler] Player ${userId} passed. Attempted: ${game.attemptedPlayerIds.size}/${game.players.length}`);
+
+    // If all players passed, treat as timeout
+    if (game.attemptedPlayerIds.size >= game.players.length) {
+      console.log(`[ActionHandler] All players passed, treating as timeout`);
+      if (game.selectedQuestion) {
+        game.selectedQuestion.isPlayed = true;
+        game.lastAnsweredQuestion = {
+          question: game.selectedQuestion,
+          correctPlayerIds: [],
+          answers: [],
+          isCorrected: false,
+        };
+      }
+      game.status = 'selecting';
+      game.selectedQuestion = null;
+      game.selectedCategoryIndex = null;
+      game.selectedQuestionIndex = null;
+      game.currentAnsweringPlayerId = null;
+      game.attemptedPlayerIds = new Set();
+      game.currentClueMessageId = null;
+      this.clearTimer(game.channelId);
+    }
   }
 
   private handleDismissResult(game: GameState, userId: string): void {

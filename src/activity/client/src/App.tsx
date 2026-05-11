@@ -68,6 +68,7 @@ const App: FC = () => {
                 userId={userId!}
                 attemptedPlayerIds={gameState.attemptedPlayerIds}
                 onBuzz={() => sendAction('buzz')}
+                onPass={() => sendAction('pass')}
                 onAnswer={(text) => sendAction('answer', { text })}
               />
             ) : (

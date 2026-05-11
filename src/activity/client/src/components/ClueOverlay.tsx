@@ -12,6 +12,7 @@ interface ClueOverlayProps {
   userId: string;
   attemptedPlayerIds: string[];
   onBuzz: () => void;
+  onPass: () => void;
   onAnswer: (text: string) => void;
 }
 
@@ -21,6 +22,7 @@ export const ClueOverlay: React.FC<ClueOverlayProps> = ({
   userId,
   attemptedPlayerIds,
   onBuzz,
+  onPass,
   onAnswer,
 }) => {
   const [answerText, setAnswerText] = useState('');
@@ -50,9 +52,14 @@ export const ClueOverlay: React.FC<ClueOverlayProps> = ({
       </div>
 
       {!isAnsweringPlayer && !attemptedPlayerIds.includes(userId) && (
-        <button className="buzz-button" onClick={onBuzz}>
-          BUZZ IN!
-        </button>
+        <div className="clue-actions">
+          <button className="buzz-button" onClick={onBuzz}>
+            BUZZ IN!
+          </button>
+          <button className="pass-button" onClick={onPass}>
+            PASS
+          </button>
+        </div>
       )}
 
       {isAnsweringPlayer && (
