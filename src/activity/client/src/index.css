@@ -207,9 +207,9 @@
 
 .timer-display {
   position: absolute;
-  top: 20px;
+  bottom: 20px;
   right: 20px;
-  font-size: 36px;
+  font-size: 24px;
   font-weight: bold;
   color: #CEA15A;
   z-index: 100;
@@ -268,20 +268,20 @@
 }
 
 .buzz-button {
-  margin-top: 40px;
-  padding: 30px 60px;
-  font-size: 36px;
+  padding: 20px 40px;
+  font-size: 24px;
   background: #CEA15A;
   color: #071277;
-  border: none;
-  border-radius: 50%;
+  border: 2px solid #CEA15A;
+  border-radius: 8px;
   cursor: pointer;
   transition: all 0.1s;
   font-weight: bold;
+  font-family: 'Swiss 911', Arial, sans-serif;
 }
 
 .buzz-button:hover {
-  transform: scale(1.1);
+  transform: scale(1.05);
   background: #d4b06b;
 }
 
@@ -291,6 +291,7 @@
 
 .buzz-button:disabled {
   background: #666;
+  border-color: #666;
   cursor: not-allowed;
   transform: none;
 }
