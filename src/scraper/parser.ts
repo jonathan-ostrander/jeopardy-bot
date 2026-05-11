@@ -1,6 +1,6 @@
 import { load } from 'cheerio';
 import { Category, FinalJeopardy, Question } from '../shared/types';
-import { parseAcceptableAnswers } from '../bot/game/AnswerValidator';
+import { parseAcceptableAnswers } from '../game/AnswerValidator';
 
 export interface ScrapedGame {
   gameId: string;

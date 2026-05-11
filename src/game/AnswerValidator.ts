@@ -90,7 +90,8 @@ export function parseAcceptableAnswers(answer: string): string[] {
 }
 
 export function validateAnswerFormat(answer: string): boolean {
-  // Must start with "What is", "Who is", "Where is", etc. and end with "?"
-  const formatRegex = /^(what|who|where|when|why|how)\s+(is|are|was|were)\s+.+\?$/i;
+  // Must start with "What is", "Who is", "Where is", etc.
+  // Question mark is optional (will be auto-added if missing)
+  const formatRegex = /^(what|who|where|when|why|how)\s+(is|are|was|were)\s+.+?\??$/i;
   return formatRegex.test(answer.trim());
 }

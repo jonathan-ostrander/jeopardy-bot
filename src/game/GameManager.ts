@@ -9,7 +9,7 @@ import {
   LastAnsweredQuestion,
   PlayerAnswer
 } from '../shared/types';
-import { loadRandomCategories, loadRandomFinalJeopardy } from '../../scraper/storage';
+import { loadRandomCategories, loadRandomFinalJeopardy } from '../scraper/storage';
 import { checkAnswer, validateAnswerFormat } from './AnswerValidator';
 
 export class GameManager {
@@ -73,6 +73,27 @@ export class GameManager {
     game.players.push(player);
     console.log(`[GameManager] Player ${username} (${userId}) added. Total players: ${game.players.length}`);
     return player;
+  }
+
+  removePlayer(game: GameState, userId: string): boolean {
+    const index = game.players.findIndex(p => p.userId === userId);
+    if (index === -1) return false;
+    
+    game.players.splice(index, 1);
+    console.log(`[GameManager] Player ${userId} removed. Total players: ${game.players.length}`);
+    
+    // If no players left, end game
+    if (game.players.length === 0) {
+      this.endGame(game.channelId);
+      return true;
+    }
+    
+    // If current player left, pick next
+    if (game.currentPlayerId === userId) {
+      game.currentPlayerId = game.players[0]?.userId ?? null;
+    }
+    
+    return true;
   }
 
   startGame(game: GameState, force = false): void {
@@ -179,6 +200,9 @@ export class GameManager {
         isCorrected: false,
       };
       game.status = 'selecting';
+      game.selectedQuestion = null;
+      game.selectedCategoryIndex = null;
+      game.selectedQuestionIndex = null;
       console.log(`[GameManager] Status -> selecting (all attempted, no correct answer)`);
     } else {
       game.status = 'reading';
@@ -243,15 +267,19 @@ export class GameManager {
       throw new Error('It is not your turn to answer');
     }
 
-    // Validate answer format
-    if (!validateAnswerFormat(answer)) {
-      return { isCorrect: false, player: null, allAttempted: false };
+    // Validate answer format - treat invalid format as wrong answer
+    const isValidFormat = validateAnswerFormat(answer);
+    if (!isValidFormat) {
+      console.log(`[GameManager] Invalid answer format from ${playerId}: "${answer}"`);
     }
 
     game.answeredThisQuestion.add(playerId);
 
-    const check = checkAnswer(answer, game.selectedQuestion.acceptableAnswers);
-    console.log(`[GameManager] Answer check: isCorrect=${check.isCorrect}`);
+    // Only check answer content if format is valid
+    const check = isValidFormat 
+      ? checkAnswer(answer, game.selectedQuestion.acceptableAnswers)
+      : { isCorrect: false, confidence: 0, matchedAnswer: null };
+    console.log(`[GameManager] Answer check: isCorrect=${check.isCorrect}, formatValid=${isValidFormat}`);
     
     const playerAnswer: PlayerAnswer = {
       playerId,
@@ -336,6 +364,9 @@ export class GameManager {
         
         game.currentAnsweringPlayerId = null;
         game.status = 'selecting';
+        game.selectedQuestion = null;
+        game.selectedCategoryIndex = null;
+        game.selectedQuestionIndex = null;
         console.log(`[GameManager] Status -> selecting (daily double wrong)`);
 
         return { isCorrect: false, player, allAttempted: true };
@@ -355,6 +386,9 @@ export class GameManager {
           isCorrected: false,
         };
         game.status = 'selecting';
+        game.selectedQuestion = null;
+        game.selectedCategoryIndex = null;
+        game.selectedQuestionIndex = null;
         console.log(`[GameManager] Status -> selecting (all attempted wrong)`);
       } else {
         game.status = 'reading';
@@ -520,7 +554,6 @@ export class GameManager {
     game.currentClueMessageId = null;
     game.players.forEach(p => {
       p.canAnswer = true;
-      p.score = p.score * 2; // Double scores? No, that's not right
     });
   }
 

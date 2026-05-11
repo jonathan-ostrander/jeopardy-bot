@@ -90,3 +90,88 @@ export interface AnswerCheck {
   confidence: number;
   matchedAnswer: string | null;
 }
+
+// Activity-specific types
+
+export interface PublicQuestion {
+  value: number;
+  isPlayed: boolean;
+  isDailyDouble: boolean;
+}
+
+export interface PublicCategory {
+  name: string;
+  questions: PublicQuestion[];
+}
+
+export interface PublicPlayer {
+  userId: string;
+  username: string;
+  score: number;
+  isHost: boolean;
+}
+
+export interface PublicSelectedQuestion {
+  categoryIndex: number;
+  questionIndex: number;
+  clue: string;
+  categoryName: string;
+  value: number;
+  isDailyDouble: boolean;
+}
+
+export interface PublicGameState {
+  status: GameStatus;
+  round: GameRound;
+  board: {
+    categories: PublicCategory[];
+    finalJeopardy?: { category: string };
+  };
+  players: PublicPlayer[];
+  currentPlayerId: string | null;
+  currentAnsweringPlayerId: string | null;
+  selectedQuestion: PublicSelectedQuestion | null;
+  timeRemaining: number | null;
+  attemptedPlayerIds: string[];
+  correctAnswer: string | null;
+  correctPlayerIds: string[];
+  dailyDoubleWager: number | null;
+}
+
+export interface PrivatePlayerState {
+  canWager: boolean;
+  maxWager: number;
+  finalJeopardyClue: string | null;
+}
+
+export type GameActionType = 
+  | 'join'
+  | 'start'
+  | 'select'
+  | 'buzz'
+  | 'answer'
+  | 'wager'
+  | 'leave'
+  | 'dismiss_result';
+
+export interface GameAction {
+  type: GameActionType;
+  payload?: unknown;
+}
+
+export interface GameStateUpdate {
+  type: 'gameState';
+  game: PublicGameState;
+}
+
+export interface PrivateStateUpdate {
+  type: 'privateState';
+  state: PrivatePlayerState;
+}
+
+export type ServerMessage = GameStateUpdate | PrivateStateUpdate | { type: 'error'; message: string } | { type: 'joined'; userId: string };
+
+export interface ClientMessage {
+  type: GameActionType;
+  payload?: unknown;
+}

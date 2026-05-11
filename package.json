@@ -1,16 +1,18 @@
 {
   "name": "jeopardy-bot",
-  "version": "1.0.0",
-  "description": "Discord bot for running Jeopardy games",
-  "main": "dist/bot/index.js",
+  "version": "2.0.0",
+  "description": "Discord Activity for running Jeopardy games in voice channels",
+  "main": "dist/server.js",
   "scripts": {
-    "build": "bun build src/bot/index.ts --outdir dist/bot --target node && bun build src/scraper/index.ts --outdir dist/scraper --target node",
-    "start:bot": "bun run src/bot/index.ts",
-    "start:scraper": "bun run src/scraper/index.ts",
-    "dev:bot": "bun --watch run src/bot/index.ts",
-    "dev:scraper": "bun --watch run src/scraper/index.ts"
+    "build:client": "cd src/activity/client && npm install && npm run build",
+    "build:server": "bun build src/server.ts --outdir dist --target node",
+    "build": "npm run build:client && npm run build:server",
+    "start": "bun run dist/server.js",
+    "dev": "bun --watch run src/server.ts",
+    "dev:client": "cd src/activity/client && npm run dev",
+    "start:scraper": "bun run src/scraper/index.ts"
   },
-  "keywords": ["discord", "bot", "jeopardy"],
+  "keywords": ["discord", "activity", "jeopardy"],
   "author": "",
   "license": "ISC",
   "dependencies": {
