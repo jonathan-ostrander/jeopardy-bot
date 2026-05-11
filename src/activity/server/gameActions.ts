@@ -102,8 +102,12 @@ export class GameActionHandler {
 
   private handleAnswer(game: GameState, userId: string, payload: unknown): void {
     const { text } = payload as { text: string };
-    // Use userId as messageId for simplicity
-    this.gameManager.submitAnswer(game, userId, text, userId);
+    if (game.status === 'final_jeopardy_answering') {
+      this.gameManager.submitFinalJeopardyAnswer(game, userId, text);
+    } else {
+      // Use userId as messageId for simplicity
+      this.gameManager.submitAnswer(game, userId, text, userId);
+    }
   }
 
   private handleWager(game: GameState, userId: string, payload: unknown): void {
@@ -158,6 +162,8 @@ export class GameActionHandler {
     }
     // Clear the last answered question to hide the overlay
     game.lastAnsweredQuestion = null;
+    // Check if round is complete and transition if needed
+    this.gameManager.checkAndTransitionRound(game);
     console.log(`[ActionHandler] Result dismissed by ${userId}`);
   }
 

@@ -102,7 +102,28 @@ export class GameManager {
       throw new Error('Need at least 2 players to start');
     }
 
+    // Reset board and game state for a new game
+    game.board = this.generateBoard();
+    game.round = 'jeopardy';
     game.status = 'selecting';
+    game.selectedQuestion = null;
+    game.selectedCategoryIndex = null;
+    game.selectedQuestionIndex = null;
+    game.answeredThisQuestion = new Set();
+    game.wrongThisQuestion = new Set();
+    game.lastAnsweredQuestion = null;
+    game.attemptedPlayerIds = new Set();
+    game.currentAnsweringPlayerId = null;
+    game.currentClueMessageId = null;
+
+    // Reset player states
+    game.players.forEach(p => {
+      p.score = 0;
+      p.canAnswer = true;
+      p.finalJeopardyWager = null;
+      p.finalJeopardyAnswer = null;
+    });
+
     // Randomly select first player
     game.currentPlayerId = game.players[Math.floor(Math.random() * game.players.length)].userId;
     console.log(`[GameManager] Game started. First player: ${game.currentPlayerId}`);
@@ -322,17 +343,9 @@ export class GameManager {
       game.wrongThisQuestion = new Set();
       game.currentClueMessageId = null;
       
-      // Check if round is complete
-      if (this.isRoundComplete(game)) {
-        if (game.round === 'jeopardy') {
-          this.transitionToDoubleJeopardy(game);
-        } else if (game.round === 'double_jeopardy') {
-          this.transitionToFinalJeopardy(game);
-        }
-      } else {
-        game.status = 'selecting';
-        console.log(`[GameManager] Status -> selecting (correct answer)`);
-      }
+      // Always set status to selecting, let dismiss handle round transition
+      game.status = 'selecting';
+      console.log(`[GameManager] Status -> selecting (correct answer)`);
 
       game.selectedQuestion = null;
       game.selectedCategoryIndex = null;
@@ -540,6 +553,18 @@ export class GameManager {
     return categories.every(category => 
       category.questions.every(question => question.isPlayed)
     );
+  }
+
+  checkAndTransitionRound(game: GameState): boolean {
+    if (game.status === 'selecting' && this.isRoundComplete(game)) {
+      if (game.round === 'jeopardy') {
+        this.transitionToDoubleJeopardy(game);
+      } else if (game.round === 'double_jeopardy') {
+        this.transitionToFinalJeopardy(game);
+      }
+      return true;
+    }
+    return false;
   }
 
   private transitionToDoubleJeopardy(game: GameState): void {
