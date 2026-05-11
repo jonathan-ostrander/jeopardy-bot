@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import { Category } from '../../shared/types';
+import { Category, Player } from '../../shared/types';
 
 const JEOPARDY_BLUE = '#071277';
 const PLAYED_BG = '#333333';
@@ -176,6 +176,52 @@ export async function generateBoardImage(
     svg += `<text x="${width / 2}" y="${footerY}" font-family="${FONT_KORINNA}" font-size="28" font-weight="bold" fill="${TEXT_GOLD}" text-anchor="middle" dominant-baseline="middle" filter="url(#textShadow)">Current Player: ${escapeXml(currentPlayerUsername)}</text>`;
   }
 
+  svg += '</svg>';
+  return svgToJpeg(svg);
+}
+
+export async function generateScoresImage(players: Player[]): Promise<Buffer> {
+  const width = 1200;
+  const rowHeight = 90;
+  const padding = 60;
+  const headerHeight = 110;
+  const height = Math.max(300, headerHeight + players.length * rowHeight + padding);
+  
+  const sortedPlayers = [...players].sort((a, b) => b.score - a.score);
+  
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">`;
+  
+  // Define text shadow filter
+  svg += `<defs><filter id="textShadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="2" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.8"/></filter></defs>`;
+  
+  // Background
+  svg += `<rect width="${width}" height="${height}" fill="${JEOPARDY_BLUE}"/>`;
+  
+  // Title
+  svg += `<text x="${width / 2}" y="${headerHeight / 2}" font-family="${FONT_SWISS}" font-size="52" fill="${TEXT_GOLD}" text-anchor="middle" dominant-baseline="middle" filter="url(#textShadow)">CURRENT SCORES</text>`;
+  
+  // Horizontal line under header
+  svg += `<line x1="${padding}" y1="${headerHeight}" x2="${width - padding}" y2="${headerHeight}" stroke="${BORDER_COLOR}" stroke-width="3"/>`;
+  
+  // Player rows
+  sortedPlayers.forEach((player, index) => {
+    const y = headerHeight + index * rowHeight;
+    const textY = y + rowHeight / 2;
+    const scoreColor = player.score >= 0 ? TEXT_WHITE : '#FF4444';
+    
+    // Username (left)
+    svg += `<text x="${padding}" y="${textY}" font-family="${FONT_SWISS}" font-size="42" fill="${TEXT_WHITE}" dominant-baseline="middle" filter="url(#textShadow)">${escapeXml(player.username)}</text>`;
+    
+    // Score (right)
+    const scoreText = player.score >= 0 ? `$${player.score}` : `-$${Math.abs(player.score)}`;
+    svg += `<text x="${width - padding}" y="${textY}" font-family="${FONT_SWISS}" font-size="42" fill="${scoreColor}" text-anchor="end" dominant-baseline="middle" filter="url(#textShadow)">${scoreText}</text>`;
+    
+    // Separator line
+    if (index < sortedPlayers.length - 1) {
+      svg += `<line x1="${padding}" y1="${y + rowHeight}" x2="${width - padding}" y2="${y + rowHeight}" stroke="${BORDER_COLOR}" stroke-width="2" stroke-opacity="0.5"/>`;
+    }
+  });
+  
   svg += '</svg>';
   return svgToJpeg(svg);
 }

@@ -1,7 +1,7 @@
 import { writeFileSync } from 'fs';
 import { join } from 'path';
-import { generateBoardImage, generateClueImage } from '../src/bot/game/ImageGenerator';
-import { Category } from '../src/shared/types';
+import { generateBoardImage, generateClueImage, generateScoresImage } from '../src/bot/game/ImageGenerator';
+import { Category, Player } from '../src/shared/types';
 
 function createMockCategories(): Category[] {
   return [
@@ -99,6 +99,17 @@ async function main() {
   const ddBuffer = await generateClueImage(dailyDouble.clue, categories[0].name, dailyDouble.value, dailyDouble.isDailyDouble);
   writeFileSync(join(outputDir, 'clue_daily_double.jpg'), ddBuffer);
   console.log('Daily double clue image saved to test/output/clue_daily_double.jpg');
+
+  console.log('Generating scores image...');
+  const mockPlayers: Player[] = [
+    { userId: '1', username: 'Alice', score: 2400, canAnswer: true, finalJeopardyWager: null, finalJeopardyAnswer: null },
+    { userId: '2', username: 'Bob', score: -800, canAnswer: true, finalJeopardyWager: null, finalJeopardyAnswer: null },
+    { userId: '3', username: 'Charlie', score: 1200, canAnswer: true, finalJeopardyWager: null, finalJeopardyAnswer: null },
+    { userId: '4', username: 'Diana', score: 0, canAnswer: true, finalJeopardyWager: null, finalJeopardyAnswer: null },
+  ];
+  const scoresBuffer = await generateScoresImage(mockPlayers);
+  writeFileSync(join(outputDir, 'scores.jpg'), scoresBuffer);
+  console.log('Scores image saved to test/output/scores.jpg');
 
   console.log('Done!');
 }

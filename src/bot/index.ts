@@ -22,13 +22,12 @@ import { config } from 'dotenv';
 import { GameManager } from './game/GameManager';
 import { GameState, Question } from '../shared/types';
 import { 
-  renderScores, 
   renderFinalJeopardyCategory,
   renderFinalJeopardyClue,
   renderFinalResults,
   renderAnswerReveal
 } from './game/BoardRenderer';
-import { generateBoardImage, generateClueImage } from './game/ImageGenerator';
+import { generateBoardImage, generateClueImage, generateScoresImage } from './game/ImageGenerator';
 import { validateAnswerFormat } from './game/AnswerValidator';
 
 async function createBoardAttachment(game: GameState): Promise<AttachmentBuilder> {
@@ -36,6 +35,11 @@ async function createBoardAttachment(game: GameState): Promise<AttachmentBuilder
   const currentPlayer = game.currentPlayerId ? game.players.find(p => p.userId === game.currentPlayerId) : undefined;
   const boardBuffer = await generateBoardImage(categories, game.round, currentPlayer?.username);
   return new AttachmentBuilder(boardBuffer, { name: 'board.jpg' });
+}
+
+async function createScoresAttachment(game: GameState): Promise<AttachmentBuilder> {
+  const scoresBuffer = await generateScoresImage(game.players);
+  return new AttachmentBuilder(scoresBuffer, { name: 'scores.jpg' });
 }
 
 async function createClueAttachment(question: Question, categoryName: string): Promise<AttachmentBuilder> {
@@ -129,6 +133,8 @@ async function revealAnswerAndReset(game: GameState, channel: TextChannel | Thre
   game.status = 'selecting';
   const boardAttachment = await createBoardAttachment(game);
   await channel.send({ files: [boardAttachment] });
+  const scoresAttachment = await createScoresAttachment(game);
+  await channel.send({ files: [scoresAttachment] });
 }
 
 config();
@@ -307,6 +313,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
           gameManager.startGame(game);
           const boardAttachment = await createBoardAttachment(game);
           await interaction.followUp({ files: [boardAttachment] });
+          const scoresAttachment = await createScoresAttachment(game);
+          await interaction.followUp({ files: [scoresAttachment] });
         }
 
       } else if (subcommand === 'board') {
@@ -319,6 +327,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
         const boardAttachment = await createBoardAttachment(game);
         await interaction.reply({ files: [boardAttachment] });
+        const scoresAttachment = await createScoresAttachment(game);
+        await interaction.followUp({ files: [scoresAttachment] });
 
       } else if (subcommand === 'scores') {
         console.log(`[Bot] Processing /jeopardy scores`);
@@ -328,8 +338,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
           return;
         }
 
-        const scoresEmbed = renderScores(game.players);
-        await interaction.reply({ embeds: [scoresEmbed] });
+        const scoresAttachment = await createScoresAttachment(game);
+        await interaction.reply({ files: [scoresAttachment] });
 
       } else if (subcommand === 'begin') {
         console.log(`[Bot] Processing /jeopardy begin`);
@@ -358,6 +368,8 @@ client.on(Events.InteractionCreate, async (interaction) => {
         gameManager.startGame(game, true);
         const boardAttachment = await createBoardAttachment(game);
         await interaction.reply({ files: [boardAttachment] });
+        const scoresAttachment = await createScoresAttachment(game);
+        await interaction.followUp({ files: [scoresAttachment] });
 
       } else if (subcommand === 'end') {
         console.log(`[Bot] Processing /jeopardy end`);
@@ -620,6 +632,8 @@ client.on(Events.MessageCreate, async (message) => {
       if (game.status === 'selecting') {
         const boardAttachment = await createBoardAttachment(game);
         await message.channel.send({ files: [boardAttachment] });
+        const scoresAttachment = await createScoresAttachment(game);
+        await message.channel.send({ files: [scoresAttachment] });
       }
     } else if (!result.isCorrect && result.player) {
       await message.reply(`❌ Wrong! You lose $${selectedQuestionValue}`);
