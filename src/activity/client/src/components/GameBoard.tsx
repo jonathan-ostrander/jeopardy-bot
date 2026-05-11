@@ -47,7 +47,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({ board, isCurrentPlayer, on
               >
                 {!q.isPlayed && (
                   <span className="question-value">
-                    {q.isDailyDouble ? 'DD' : `$${q.value}`}
+                    ${q.value}
                   </span>
                 )}
               </button>
@@ -74,7 +74,7 @@ style.textContent = `
   .board-grid {
     display: grid;
     grid-template-columns: repeat(6, 1fr);
-    grid-template-rows: auto repeat(5, 1fr);
+    grid-template-rows: 1fr repeat(5, 2fr);
     gap: 4px;
     width: 100%;
     max-width: 1200px;
@@ -88,17 +88,21 @@ style.textContent = `
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 10px 5px;
-    min-height: 80px;
+    padding: 8px 6px;
+    height: 100%;
+    overflow: hidden;
   }
 
   .category-name {
     color: ${TEXT_WHITE};
     font-family: 'Swiss 911', Arial, sans-serif;
-    font-size: clamp(14px, 2vw, 28px);
+    font-size: clamp(11px, 1.6vw, 22px);
     text-align: center;
     text-transform: uppercase;
-    line-height: 1.2;
+    line-height: 1.15;
+    word-break: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
   }
 
   .question-cell {

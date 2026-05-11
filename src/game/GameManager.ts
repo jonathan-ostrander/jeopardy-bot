@@ -515,9 +515,10 @@ export class GameManager {
 
   private assignDailyDoubles(categories: Category[], count: number): void {
     const allQuestions: { categoryIndex: number; questionIndex: number }[] = [];
-    
+
     for (let i = 0; i < categories.length; i++) {
       for (let j = 0; j < categories[i].questions.length; j++) {
+        categories[i].questions[j].isDailyDouble = false;
         allQuestions.push({ categoryIndex: i, questionIndex: j });
       }
     }

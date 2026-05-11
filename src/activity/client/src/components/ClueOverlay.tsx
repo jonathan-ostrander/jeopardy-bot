@@ -42,14 +42,12 @@ export const ClueOverlay: React.FC<ClueOverlayProps> = ({
 
   return (
     <div className="clue-overlay">
-      <div 
-        dangerouslySetInnerHTML={{ __html: svgString }}
-        style={{ 
-          width: '100%',
-          maxWidth: '1200px',
-          maxHeight: '700px',
-        }}
-      />
+      <div className="clue-container">
+        <div
+          dangerouslySetInnerHTML={{ __html: svgString }}
+          className="clue-svg-wrapper"
+        />
+      </div>
 
       {!isAnsweringPlayer && !attemptedPlayerIds.includes(userId) && (
         <button className="buzz-button" onClick={onBuzz}>
