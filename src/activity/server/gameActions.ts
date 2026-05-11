@@ -160,6 +160,15 @@ export class GameActionHandler {
     if (game.currentPlayerId !== userId && game.hostId !== userId) {
       throw new Error('Only the current player or host can dismiss the result');
     }
+
+    if (game.status === 'final_jeopardy_reveal') {
+      game.status = 'ended';
+      game.lastAnsweredQuestion = null;
+      this.clearTimer(game.channelId);
+      console.log(`[ActionHandler] Final Jeopardy reveal dismissed by ${userId}`);
+      return;
+    }
+
     // Clear the last answered question to hide the overlay
     game.lastAnsweredQuestion = null;
     // Check if round is complete and transition if needed
@@ -180,6 +189,8 @@ export class GameActionHandler {
       duration = 15000;
     } else if (game.status === 'final_jeopardy_answering') {
       duration = 30000;
+    } else if (game.status === 'final_jeopardy_reveal') {
+      duration = 10000;
     } else {
       return;
     }
@@ -217,6 +228,13 @@ export class GameActionHandler {
     } else if (game.status === 'answering') {
       // Player timed out
       this.gameManager.handleAnswerTimeout(game);
+    } else if (game.status === 'final_jeopardy_answering') {
+      // Final Jeopardy answering timeout
+      this.gameManager.handleFinalJeopardyTimeout(game);
+    } else if (game.status === 'final_jeopardy_reveal') {
+      // Auto-advance from reveal to ended
+      game.status = 'ended';
+      game.lastAnsweredQuestion = null;
     }
 
     this.clearTimer(game.channelId);

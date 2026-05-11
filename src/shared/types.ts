@@ -54,6 +54,7 @@ export type GameStatus =
   | 'daily_double_wager'
   | 'final_jeopardy_wager'
   | 'final_jeopardy_answering'
+  | 'final_jeopardy_reveal'
   | 'ended';
 
 export type GameRound = 'jeopardy' | 'double_jeopardy' | 'final_jeopardy';

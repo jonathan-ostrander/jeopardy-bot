@@ -9,6 +9,7 @@ import { ResultOverlay } from './components/ResultOverlay';
 import { WagerInput } from './components/WagerInput';
 import { FinalJeopardyWager } from './components/FinalJeopardyWager';
 import { FinalJeopardyAnswer } from './components/FinalJeopardyAnswer';
+import { FinalJeopardyReveal } from './components/FinalJeopardyReveal';
 import { GameOver } from './components/GameOver';
 import { TimerDisplay } from './components/TimerDisplay';
 import './index.css';
@@ -134,6 +135,16 @@ const App: FC = () => {
         <FinalJeopardyAnswer
           clue={privateState?.finalJeopardyClue || ''}
           onAnswer={(text) => sendAction('answer', { text })}
+          timeRemaining={gameState.timeRemaining}
+        />
+      )}
+
+      {gameState.status === 'final_jeopardy_reveal' && (
+        <FinalJeopardyReveal
+          answer={gameState.correctAnswer || ''}
+          category={gameState.lastQuestionCategory || ''}
+          correctPlayerIds={gameState.correctPlayerIds}
+          players={gameState.players}
           timeRemaining={gameState.timeRemaining}
         />
       )}

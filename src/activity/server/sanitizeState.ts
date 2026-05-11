@@ -56,6 +56,14 @@ export function sanitizeGameState(game: GameState): PublicGameState {
     }
   }
 
+  if (game.status === 'final_jeopardy_reveal') {
+    correctAnswer = game.board.finalJeopardy.answer;
+    correctPlayerIds = game.lastAnsweredQuestion?.correctPlayerIds || [];
+    lastQuestionCategory = game.board.finalJeopardy.category;
+    lastQuestionValue = 0;
+    lastQuestionIsDailyDouble = false;
+  }
+
   let dailyDoubleWager: number | null = null;
   if (game.selectedQuestion?.isDailyDouble) {
     dailyDoubleWager = (game.selectedQuestion as any).wager ?? null;

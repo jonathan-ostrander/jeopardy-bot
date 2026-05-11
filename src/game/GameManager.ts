@@ -459,6 +459,7 @@ export class GameManager {
   scoreFinalJeopardy(game: GameState): void {
     console.log(`[GameManager] Scoring Final Jeopardy`);
     const finalJeopardy = game.board.finalJeopardy;
+    const correctPlayerIds: string[] = [];
     
     for (const player of game.players) {
       if (player.finalJeopardyAnswer && player.finalJeopardyWager !== null) {
@@ -466,6 +467,7 @@ export class GameManager {
         
         if (check.isCorrect) {
           player.score += player.finalJeopardyWager;
+          correctPlayerIds.push(player.userId);
           console.log(`[GameManager] ${player.username} correct! +$${player.finalJeopardyWager}. Score: ${player.score}`);
         } else {
           player.score -= player.finalJeopardyWager;
@@ -474,8 +476,32 @@ export class GameManager {
       }
     }
 
-    game.status = 'ended';
-    console.log(`[GameManager] Game ended`);
+    game.status = 'final_jeopardy_reveal';
+    game.lastAnsweredQuestion = {
+      question: {
+        value: 0,
+        clue: finalJeopardy.clue,
+        answer: finalJeopardy.answer,
+        acceptableAnswers: finalJeopardy.acceptableAnswers,
+        isDailyDouble: false,
+        isPlayed: true,
+      },
+      correctPlayerIds,
+      answers: [],
+      isCorrected: false,
+    };
+    console.log(`[GameManager] Status -> final_jeopardy_reveal`);
+  }
+
+  handleFinalJeopardyTimeout(game: GameState): void {
+    console.log(`[GameManager] Final Jeopardy answering timeout`);
+    // Mark any players who haven't answered as having no answer
+    for (const player of game.players) {
+      if (player.finalJeopardyAnswer === null) {
+        player.finalJeopardyAnswer = '';
+      }
+    }
+    this.scoreFinalJeopardy(game);
   }
 
   correctAnswer(game: GameState, messageId: string): { success: boolean; player: Player | null } {
