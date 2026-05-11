@@ -385,16 +385,16 @@
   to { opacity: 1; }
 }
 
-.result-overlay h2 {
-  font-size: 36px;
-  color: #CEA15A;
+.result-overlay .clue-container {
   margin-bottom: 20px;
 }
 
-.result-overlay .answer {
-  font-size: 48px;
-  color: white;
+.result-players {
+  font-size: 24px;
+  color: #CEA15A;
   margin-bottom: 20px;
+  text-align: center;
+  font-family: 'ITC Korinna', Georgia, serif;
 }
 
 .game-over {

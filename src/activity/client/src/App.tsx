@@ -85,6 +85,9 @@ const App: FC = () => {
             {gameState.correctAnswer && (
               <ResultOverlay
                 answer={gameState.correctAnswer}
+                category={gameState.lastQuestionCategory || ''}
+                value={gameState.lastQuestionValue || 0}
+                isDailyDouble={gameState.lastQuestionIsDailyDouble}
                 correctPlayerIds={gameState.correctPlayerIds}
                 onDismiss={() => sendAction('dismiss_result')}
               />

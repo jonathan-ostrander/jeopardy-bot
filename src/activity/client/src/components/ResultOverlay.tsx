@@ -1,12 +1,23 @@
 import React, { useEffect, useState } from 'react';
+import { generateAnswerSvg } from '../svgRenderer';
 
 interface ResultOverlayProps {
   answer: string;
+  category: string;
+  value: number;
+  isDailyDouble: boolean;
   correctPlayerIds: string[];
   onDismiss: () => void;
 }
 
-export const ResultOverlay: React.FC<ResultOverlayProps> = ({ answer, correctPlayerIds, onDismiss }) => {
+export const ResultOverlay: React.FC<ResultOverlayProps> = ({
+  answer,
+  category,
+  value,
+  isDailyDouble,
+  correctPlayerIds,
+  onDismiss,
+}) => {
   const [countdown, setCountdown] = useState(3);
 
   useEffect(() => {
@@ -24,16 +35,24 @@ export const ResultOverlay: React.FC<ResultOverlayProps> = ({ answer, correctPla
     return () => clearInterval(interval);
   }, [onDismiss]);
 
+  const svgString = generateAnswerSvg(answer, category, value, isDailyDouble);
+
   return (
     <div className="result-overlay">
-      <h2>✅ Answer</h2>
-      <div className="answer">{answer}</div>
-      {correctPlayerIds.length > 0 ? (
-        <p>Correct players: {correctPlayerIds.join(', ')}</p>
-      ) : (
-        <p>No one got it right!</p>
-      )}
-      <button className="button button-primary" onClick={onDismiss} style={{ marginTop: '30px' }}>
+      <div className="clue-container">
+        <div
+          dangerouslySetInnerHTML={{ __html: svgString }}
+          className="clue-svg-wrapper"
+        />
+      </div>
+      <div className="result-players">
+        {correctPlayerIds.length > 0 ? (
+          <p>Correct: {correctPlayerIds.join(', ')}</p>
+        ) : (
+          <p>No one got it right!</p>
+        )}
+      </div>
+      <button className="button button-primary" onClick={onDismiss}>
         Continue ({countdown})
       </button>
     </div>

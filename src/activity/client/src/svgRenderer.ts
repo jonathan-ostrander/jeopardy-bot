@@ -171,6 +171,44 @@ export function generateBoardSvg(
   return svg;
 }
 
+export function generateAnswerSvg(
+  answer: string,
+  category: string,
+  value: number,
+  isDailyDouble: boolean
+): string {
+  const width = 1200;
+  const height = 700;
+
+  const categoryValueText = isDailyDouble
+    ? `${category} — DAILY DOUBLE`
+    : `${category} — $${value}`;
+
+  const maxTextWidth = width - 120;
+  const maxTextHeight = height - 200;
+  const { lines, fontSize } = fitText(answer, maxTextWidth, maxTextHeight, 52, 20);
+
+  let svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}">`;
+
+  // Define text shadow filter
+  svg += `<defs><filter id="textShadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="2" dy="2" stdDeviation="2" flood-color="#000000" flood-opacity="0.8"/></filter></defs>`;
+
+  svg += `<rect width="${width}" height="${height}" fill="${JEOPARDY_BLUE}"/>`;
+
+  // Header: Category & Value
+  svg += `<text x="${width / 2}" y="50" font-family="${FONT_SWISS}" font-size="40" fill="${TEXT_GOLD}" text-anchor="middle" filter="url(#textShadow)">${escapeXml(categoryValueText)}</text>`;
+
+  // "CORRECT ANSWER" label
+  svg += `<text x="${width / 2}" y="110" font-family="${FONT_SWISS}" font-size="32" fill="#CEA15A" text-anchor="middle" filter="url(#textShadow)">CORRECT ANSWER</text>`;
+
+  // Answer text
+  const textCenterY = height / 2 + 20;
+  svg += renderSvgTextLines(lines, width / 2, textCenterY, fontSize, TEXT_WHITE);
+
+  svg += '</svg>';
+  return svg;
+}
+
 export function generateScoresSvg(players: Player[]): string {
   const width = 1200;
   const rowHeight = 90;

@@ -38,9 +38,22 @@ export function sanitizeGameState(game: GameState): PublicGameState {
 
   let correctAnswer: string | null = null;
   let correctPlayerIds: string[] = [];
+  let lastQuestionCategory: string | null = null;
+  let lastQuestionValue: number | null = null;
+  let lastQuestionIsDailyDouble = false;
   if (game.status === 'selecting' && game.lastAnsweredQuestion) {
     correctAnswer = game.lastAnsweredQuestion.question.answer;
     correctPlayerIds = game.lastAnsweredQuestion.correctPlayerIds;
+    lastQuestionValue = game.lastAnsweredQuestion.question.value;
+    lastQuestionIsDailyDouble = game.lastAnsweredQuestion.question.isDailyDouble;
+    // Find category name by searching through both rounds
+    for (const round of [game.board.jeopardyRound, game.board.doubleJeopardyRound]) {
+      const cat = round.find(c => c.questions.some(q => q.clue === game.lastAnsweredQuestion!.question.clue));
+      if (cat) {
+        lastQuestionCategory = cat.name;
+        break;
+      }
+    }
   }
 
   let dailyDoubleWager: number | null = null;
@@ -66,6 +79,9 @@ export function sanitizeGameState(game: GameState): PublicGameState {
     correctAnswer,
     correctPlayerIds,
     dailyDoubleWager,
+    lastQuestionCategory,
+    lastQuestionValue,
+    lastQuestionIsDailyDouble,
   };
 }
 

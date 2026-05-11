@@ -81,6 +81,9 @@ export interface PublicGameState {
   correctAnswer: string | null;
   correctPlayerIds: string[];
   dailyDoubleWager: number | null;
+  lastQuestionCategory: string | null;
+  lastQuestionValue: number | null;
+  lastQuestionIsDailyDouble: boolean;
 }
 
 export interface PrivatePlayerState {
