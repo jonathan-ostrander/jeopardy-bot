@@ -182,8 +182,8 @@ export class GameManager {
       throw new Error('You already had a turn on this question');
     }
 
-    if (game.selectedQuestion.isDailyDouble && game.currentPlayerId !== playerId) {
-      throw new Error('Only the current player can answer a Daily Double');
+    if (game.selectedQuestion.isDailyDouble) {
+      throw new Error('You cannot buzz in on a Daily Double');
     }
 
     game.currentAnsweringPlayerId = playerId;
@@ -208,6 +208,24 @@ export class GameManager {
     }
 
     game.currentAnsweringPlayerId = null;
+    
+    // Daily double: only one player can attempt, so always end question
+    if (game.selectedQuestion.isDailyDouble) {
+      game.selectedQuestion.isPlayed = true;
+      game.lastAnsweredQuestion = {
+        question: game.selectedQuestion,
+        correctPlayerIds: [],
+        answers: [],
+        isCorrected: false,
+      };
+      game.status = 'selecting';
+      game.selectedQuestion = null;
+      game.selectedCategoryIndex = null;
+      game.selectedQuestionIndex = null;
+      console.log(`[GameManager] Status -> selecting (daily double timeout)`);
+      return { allAttempted: true };
+    }
+    
     const allAttempted = game.attemptedPlayerIds.size >= game.players.length;
     console.log(`[GameManager] Attempted: ${game.attemptedPlayerIds.size}/${game.players.length}. All attempted: ${allAttempted}`);
 
@@ -259,8 +277,13 @@ export class GameManager {
         (game.selectedQuestion as any).wager = wager;
       }
       
-      game.status = 'reading';
-      console.log(`[GameManager] Daily double wager placed. Status -> reading`);
+      // Daily double: current player answers immediately, no buzzing
+      game.currentAnsweringPlayerId = game.currentPlayerId;
+      if (game.currentPlayerId) {
+        game.attemptedPlayerIds.add(game.currentPlayerId);
+      }
+      game.status = 'answering';
+      console.log(`[GameManager] Daily double wager placed. Status -> answering`);
     } else if (game.status === 'final_jeopardy_wager') {
       player.finalJeopardyWager = wager;
       
