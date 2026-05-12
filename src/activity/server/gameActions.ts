@@ -4,6 +4,7 @@ import { sanitizeGameState, getPrivatePlayerState } from './sanitizeState';
 
 export class GameActionHandler {
   private timers = new Map<string, { timeout: NodeJS.Timeout; endTime: number }>();
+  private broadcastIntervals = new Map<string, NodeJS.Timeout>();
 
   constructor(private gameManager: GameManager) {}
 
@@ -184,7 +185,12 @@ export class GameActionHandler {
 
     let duration = 0;
     if (game.status === 'reading') {
-      duration = 15000;
+      // If there's a buzz delay, extend the reading timer to include it
+      if (game.buzzDelayEndTime && game.buzzDelayEndTime > Date.now()) {
+        duration = 15000 + (game.buzzDelayEndTime - Date.now());
+      } else {
+        duration = 15000;
+      }
     } else if (game.status === 'answering') {
       duration = 15000;
     } else if (game.status === 'final_jeopardy_answering') {
@@ -202,6 +208,17 @@ export class GameActionHandler {
         this.handleTimeout(game, broadcast);
       }, duration),
     });
+
+    // Start periodic broadcasts during buzz delay for smooth progress bar
+    this.clearBroadcastInterval(game.channelId);
+    if (game.status === 'reading' && game.buzzDelayEndTime && game.buzzDelayEndTime > Date.now()) {
+      const interval = setInterval(() => {
+        const publicState = sanitizeGameState(game);
+        publicState.timeRemaining = this.getTimeRemaining(game.channelId);
+        broadcast(publicState);
+      }, 100);
+      this.broadcastIntervals.set(game.channelId, interval);
+    }
   }
 
   private handleTimeout(game: GameState, broadcast: (state: PublicGameState) => void): void {
@@ -255,6 +272,15 @@ export class GameActionHandler {
     if (timer) {
       clearTimeout(timer.timeout);
       this.timers.delete(channelId);
+    }
+    this.clearBroadcastInterval(channelId);
+  }
+
+  private clearBroadcastInterval(channelId: string): void {
+    const interval = this.broadcastIntervals.get(channelId);
+    if (interval) {
+      clearInterval(interval);
+      this.broadcastIntervals.delete(channelId);
     }
   }
 }

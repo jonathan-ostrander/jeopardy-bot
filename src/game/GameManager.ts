@@ -37,6 +37,8 @@ export class GameManager {
       currentAnsweringPlayerId: null,
       attemptedPlayerIds: new Set(),
       currentClueMessageId: null,
+      buzzDelayEndTime: null,
+      buzzDelayTotal: null,
     };
 
     this.games.set(channelId, game);
@@ -114,7 +116,10 @@ export class GameManager {
     game.lastAnsweredQuestion = null;
     game.attemptedPlayerIds = new Set();
     game.currentAnsweringPlayerId = null;
+    game.attemptedPlayerIds = new Set();
     game.currentClueMessageId = null;
+    game.buzzDelayEndTime = null;
+    game.buzzDelayTotal = null;
 
     // Reset player states
     game.players.forEach(p => {
@@ -160,6 +165,9 @@ export class GameManager {
     game.attemptedPlayerIds = new Set();
     game.currentAnsweringPlayerId = null;
     game.currentClueMessageId = null;
+    const buzzDelay = 1000 + Math.floor(Math.random() * 2000);
+    game.buzzDelayEndTime = Date.now() + buzzDelay;
+    game.buzzDelayTotal = buzzDelay;
 
     if (question.isDailyDouble) {
       game.status = 'daily_double_wager';
@@ -188,6 +196,10 @@ export class GameManager {
 
     if (game.currentAnsweringPlayerId !== null) {
       throw new Error('Someone else has already buzzed in');
+    }
+
+    if (game.buzzDelayEndTime && Date.now() < game.buzzDelayEndTime) {
+      throw new Error('Too early to buzz in');
     }
 
     game.currentAnsweringPlayerId = playerId;
@@ -226,6 +238,8 @@ export class GameManager {
       game.selectedQuestion = null;
       game.selectedCategoryIndex = null;
       game.selectedQuestionIndex = null;
+      game.buzzDelayEndTime = null;
+    game.buzzDelayTotal = null;
       console.log(`[GameManager] Status -> selecting (daily double timeout)`);
       return { allAttempted: true };
     }
@@ -246,6 +260,8 @@ export class GameManager {
       game.selectedQuestion = null;
       game.selectedCategoryIndex = null;
       game.selectedQuestionIndex = null;
+      game.buzzDelayEndTime = null;
+    game.buzzDelayTotal = null;
       console.log(`[GameManager] Status -> selecting (all attempted, no correct answer)`);
     } else {
       game.status = 'reading';
@@ -380,6 +396,8 @@ export class GameManager {
       game.selectedQuestion = null;
       game.selectedCategoryIndex = null;
       game.selectedQuestionIndex = null;
+      game.buzzDelayEndTime = null;
+    game.buzzDelayTotal = null;
 
       return { isCorrect: true, player, allAttempted: false };
     } else {
@@ -410,6 +428,8 @@ export class GameManager {
         game.selectedQuestion = null;
         game.selectedCategoryIndex = null;
         game.selectedQuestionIndex = null;
+        game.buzzDelayEndTime = null;
+    game.buzzDelayTotal = null;
         console.log(`[GameManager] Status -> selecting (daily double wrong)`);
 
         return { isCorrect: false, player, allAttempted: true };
@@ -432,6 +452,8 @@ export class GameManager {
         game.selectedQuestion = null;
         game.selectedCategoryIndex = null;
         game.selectedQuestionIndex = null;
+        game.buzzDelayEndTime = null;
+    game.buzzDelayTotal = null;
         console.log(`[GameManager] Status -> selecting (all attempted wrong)`);
       } else {
         game.status = 'reading';
@@ -638,6 +660,8 @@ export class GameManager {
     game.attemptedPlayerIds = new Set();
     game.currentAnsweringPlayerId = null;
     game.currentClueMessageId = null;
+    game.buzzDelayEndTime = null;
+    game.buzzDelayTotal = null;
     game.players.forEach(p => {
       p.canAnswer = true;
     });
@@ -652,6 +676,8 @@ export class GameManager {
     game.attemptedPlayerIds = new Set();
     game.currentAnsweringPlayerId = null;
     game.currentClueMessageId = null;
+    game.buzzDelayEndTime = null;
+    game.buzzDelayTotal = null;
 
     // Reset Final Jeopardy state
     // Players with non-positive scores cannot participate

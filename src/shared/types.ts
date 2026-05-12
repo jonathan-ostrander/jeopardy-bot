@@ -84,6 +84,8 @@ export interface GameState {
   currentAnsweringPlayerId: string | null;
   attemptedPlayerIds: Set<string>;
   currentClueMessageId: string | null;
+  buzzDelayEndTime: number | null;
+  buzzDelayTotal: number | null;
 }
 
 export interface AnswerCheck {
@@ -140,6 +142,8 @@ export interface PublicGameState {
   lastQuestionCategory: string | null;
   lastQuestionValue: number | null;
   lastQuestionIsDailyDouble: boolean;
+  buzzDelayRemaining: number | null;
+  buzzDelayTotal: number | null;
 }
 
 export interface PrivatePlayerState {

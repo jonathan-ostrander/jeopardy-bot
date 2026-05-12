@@ -85,6 +85,8 @@ export interface PublicGameState {
   lastQuestionCategory: string | null;
   lastQuestionValue: number | null;
   lastQuestionIsDailyDouble: boolean;
+  buzzDelayRemaining: number | null;
+  buzzDelayTotal: number | null;
 }
 
 export interface PrivatePlayerState {

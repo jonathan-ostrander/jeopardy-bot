@@ -90,6 +90,10 @@ export function sanitizeGameState(game: GameState): PublicGameState {
     lastQuestionCategory,
     lastQuestionValue,
     lastQuestionIsDailyDouble,
+    buzzDelayRemaining: game.status === 'reading' && game.buzzDelayEndTime
+      ? Math.max(0, game.buzzDelayEndTime - Date.now())
+      : null,
+    buzzDelayTotal: game.buzzDelayTotal,
   };
 }
 

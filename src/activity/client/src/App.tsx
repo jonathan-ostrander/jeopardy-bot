@@ -79,6 +79,8 @@ const App: FC = () => {
                 userId={userId!}
                 attemptedPlayerIds={gameState.attemptedPlayerIds}
                 currentAnsweringPlayerId={gameState.currentAnsweringPlayerId}
+                buzzDelayRemaining={gameState.buzzDelayRemaining}
+                buzzDelayTotal={gameState.buzzDelayTotal}
                 onBuzz={() => sendAction('buzz')}
                 onPass={() => sendAction('pass')}
                 onAnswer={(text) => sendAction('answer', { text })}
