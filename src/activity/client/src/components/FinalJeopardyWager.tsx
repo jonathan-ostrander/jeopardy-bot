@@ -21,40 +21,46 @@ export const FinalJeopardyWager: React.FC<FinalJeopardyWagerProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const num = parseInt(amount, 10);
-    if (!isNaN(num) && num >= 0 && num <= maxWager) {
+    if (!isNaN(num) && num > 0 && num <= maxWager) {
       onWager(num);
     }
   };
 
   return (
-    <div className="lobby">
-      <h1>🏁 Final Jeopardy!</h1>
-      <p>Category: <strong>{category}</strong></p>
+    <div className="wager-screen">
+      <h2>🏁 FINAL JEOPARDY!</h2>
+      <p className="wager-label">Category: {category}</p>
       
       {canWager ? (
-        <form onSubmit={handleSubmit} style={{ marginTop: '40px' }}>
-          <p>Your max wager: ${maxWager}</p>
-          <input
-            type="number"
-            className="wager-input"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            min={0}
-            max={maxWager}
-            placeholder="Enter wager..."
-            autoFocus
-          />
-          <button type="submit" className="button button-primary">
-            Submit Wager
-          </button>
-        </form>
+        <>
+          <p className="wager-max">Max Wager: ${maxWager}</p>
+          <form onSubmit={handleSubmit}>
+            <input
+              type="number"
+              className="wager-input"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              min={1}
+              max={maxWager}
+              placeholder="$0"
+              autoFocus
+            />
+            <button type="submit" className="button button-primary">
+              Submit Wager
+            </button>
+          </form>
+        </>
       ) : (
-        <div style={{ marginTop: '40px', textAlign: 'center' }}>
-          <p>Wager submitted! Waiting for other players...</p>
-          <div className="lobby-players" style={{ marginTop: '20px' }}>
+        <div style={{ textAlign: 'center' }}>
+          {maxWager === 0 ? (
+            <p className="wager-waiting">You cannot participate in Final Jeopardy with a non-positive score.</p>
+          ) : (
+            <p className="wager-waiting">Wager submitted! Waiting for other players...</p>
+          )}
+          <div className="lobby-players" style={{ marginTop: '30px' }}>
             {players.map(p => (
               <div key={p.userId} className="lobby-player">
-                {p.username} - {p.score >= 0 ? `$${p.score}` : `-$${Math.abs(p.score)}`}
+                {p.username} — {p.score >= 0 ? `$${p.score}` : `-$${Math.abs(p.score)}`}
               </div>
             ))}
           </div>

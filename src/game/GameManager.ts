@@ -262,8 +262,8 @@ export class GameManager {
       ? (player.score > 0 ? player.score : 1000)
       : (player.score > 0 ? player.score : 2000);
 
-    if (wager < 0 || wager > maxWager) {
-      throw new Error(`Wager must be between $0 and $${maxWager}`);
+    if (wager <= 0 || wager > maxWager) {
+      throw new Error(`Wager must be between $1 and $${maxWager}`);
     }
 
     if (game.status === 'daily_double_wager') {
@@ -285,8 +285,11 @@ export class GameManager {
       game.status = 'answering';
       console.log(`[GameManager] Daily double wager placed. Status -> answering`);
     } else if (game.status === 'final_jeopardy_wager') {
+      if (player.score <= 0) {
+        throw new Error('You cannot participate in Final Jeopardy with a non-positive score');
+      }
       player.finalJeopardyWager = wager;
-      
+
       // Check if all players have wagered
       const allWagered = game.players.every(p => p.finalJeopardyWager !== null);
       if (allWagered) {
@@ -444,6 +447,10 @@ export class GameManager {
 
     if (game.status !== 'final_jeopardy_answering') {
       throw new Error('Not in Final Jeopardy answering phase');
+    }
+
+    if (player.score <= 0 || player.finalJeopardyWager === 0) {
+      throw new Error('You cannot participate in Final Jeopardy with a non-positive score');
     }
 
     player.finalJeopardyAnswer = answer;
@@ -641,12 +648,25 @@ export class GameManager {
     game.attemptedPlayerIds = new Set();
     game.currentAnsweringPlayerId = null;
     game.currentClueMessageId = null;
-    
+
     // Reset Final Jeopardy state
+    // Players with non-positive scores cannot participate
     game.players.forEach(p => {
-      p.finalJeopardyWager = null;
-      p.finalJeopardyAnswer = null;
+      if (p.score <= 0) {
+        p.finalJeopardyWager = 0;
+        p.finalJeopardyAnswer = '';
+      } else {
+        p.finalJeopardyWager = null;
+        p.finalJeopardyAnswer = null;
+      }
     });
+
+    // If all players are ineligible, skip to reveal
+    const hasEligiblePlayers = game.players.some(p => p.score > 0);
+    if (!hasEligiblePlayers) {
+      console.log('[GameManager] No eligible players for Final Jeopardy, skipping to reveal');
+      this.scoreFinalJeopardy(game);
+    }
   }
 
   getLeaderboard(game: GameState): Player[] {

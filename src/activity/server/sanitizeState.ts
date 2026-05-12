@@ -108,9 +108,9 @@ export function getPrivatePlayerState(game: GameState, userId: string): PrivateP
     }
   }
 
-  if (game.status === 'final_jeopardy_wager' && player && player.finalJeopardyWager === null) {
+  if (game.status === 'final_jeopardy_wager' && player && player.finalJeopardyWager === null && player.score > 0) {
     canWager = true;
-    maxWager = player.score > 0 ? player.score : 0;
+    maxWager = player.score;
   }
 
   if (game.status === 'final_jeopardy_answering' && player && player.finalJeopardyAnswer === null) {

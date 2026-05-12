@@ -62,7 +62,17 @@ const App: FC = () => {
       {(gameState.status === 'selecting' || gameState.status === 'reading' || gameState.status === 'answering') && (
         <div className="game-layout">
           <div className="board-container">
-            {gameState.selectedQuestion ? (
+            {gameState.correctAnswer ? (
+              <ResultOverlay
+                answer={gameState.correctAnswer}
+                category={gameState.lastQuestionCategory || ''}
+                value={gameState.lastQuestionValue || 0}
+                isDailyDouble={gameState.lastQuestionIsDailyDouble}
+                correctPlayerIds={gameState.correctPlayerIds}
+                players={gameState.players}
+                onDismiss={() => sendAction('dismiss_result')}
+              />
+            ) : gameState.selectedQuestion ? (
               <ClueOverlay
                 question={gameState.selectedQuestion}
                 isAnsweringPlayer={isAnsweringPlayer}
@@ -80,18 +90,6 @@ const App: FC = () => {
                 onSelect={(categoryIndex, questionIndex) =>
                   sendAction('select', { categoryIndex, questionIndex })
                 }
-              />
-            )}
-            
-            {gameState.correctAnswer && (
-              <ResultOverlay
-                answer={gameState.correctAnswer}
-                category={gameState.lastQuestionCategory || ''}
-                value={gameState.lastQuestionValue || 0}
-                isDailyDouble={gameState.lastQuestionIsDailyDouble}
-                correctPlayerIds={gameState.correctPlayerIds}
-                players={gameState.players}
-                onDismiss={() => sendAction('dismiss_result')}
               />
             )}
           </div>

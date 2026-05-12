@@ -21,7 +21,7 @@ export const ResultOverlay: React.FC<ResultOverlayProps> = ({
   players,
   onDismiss,
 }) => {
-  const [countdown, setCountdown] = useState(3);
+  const [countdown, setCountdown] = useState(5);
 
   useEffect(() => {
     const interval = setInterval(() => {
