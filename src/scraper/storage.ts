@@ -48,6 +48,14 @@ export function isGameScraped(gameId: string): boolean {
   return existsSync(filePath);
 }
 
+export function getScrapedGameIds(): Set<string> {
+  if (!existsSync(GAMES_DIR)) {
+    return new Set();
+  }
+  const files = readdirSync(GAMES_DIR).filter(f => f.endsWith('.json'));
+  return new Set(files.map(f => f.replace(/\.json$/, '')));
+}
+
 export function loadCategories(round: 'jeopardy' | 'double_jeopardy'): Category[] {
   const dir = join(CATEGORIES_DIR, round);
   
