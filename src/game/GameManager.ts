@@ -186,6 +186,10 @@ export class GameManager {
       throw new Error('You cannot buzz in on a Daily Double');
     }
 
+    if (game.currentAnsweringPlayerId !== null) {
+      throw new Error('Someone else has already buzzed in');
+    }
+
     game.currentAnsweringPlayerId = playerId;
     game.attemptedPlayerIds.add(playerId);
     game.status = 'answering';

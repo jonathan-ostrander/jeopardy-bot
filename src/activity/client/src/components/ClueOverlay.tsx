@@ -11,6 +11,7 @@ interface ClueOverlayProps {
   isAnsweringPlayer: boolean;
   userId: string;
   attemptedPlayerIds: string[];
+  currentAnsweringPlayerId: string | null;
   onBuzz: () => void;
   onPass: () => void;
   onAnswer: (text: string) => void;
@@ -21,6 +22,7 @@ export const ClueOverlay: React.FC<ClueOverlayProps> = ({
   isAnsweringPlayer,
   userId,
   attemptedPlayerIds,
+  currentAnsweringPlayerId,
   onBuzz,
   onPass,
   onAnswer,
@@ -42,6 +44,9 @@ export const ClueOverlay: React.FC<ClueOverlayProps> = ({
     }
   };
 
+  const someoneElseBuzzedIn = currentAnsweringPlayerId !== null && currentAnsweringPlayerId !== userId;
+  const isDailyDoubleNonSelector = question.isDailyDouble && !isAnsweringPlayer;
+
   return (
     <div className="clue-overlay">
       <div className="clue-container">
@@ -51,7 +56,13 @@ export const ClueOverlay: React.FC<ClueOverlayProps> = ({
         />
       </div>
 
-      {!isAnsweringPlayer && !attemptedPlayerIds.includes(userId) && (
+      {someoneElseBuzzedIn && !isDailyDoubleNonSelector && (
+        <div className="clue-actions">
+          <p className="locked-out-message">Someone else has buzzed in!</p>
+        </div>
+      )}
+
+      {!isAnsweringPlayer && !attemptedPlayerIds.includes(userId) && !someoneElseBuzzedIn && !isDailyDoubleNonSelector && (
         <div className="clue-actions">
           <button className="buzz-button" onClick={onBuzz}>
             BUZZ IN!

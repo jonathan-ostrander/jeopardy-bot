@@ -4,12 +4,14 @@ interface FinalJeopardyAnswerProps {
   clue: string;
   onAnswer: (text: string) => void;
   timeRemaining: number | null;
+  canAnswer: boolean;
 }
 
 export const FinalJeopardyAnswer: React.FC<FinalJeopardyAnswerProps> = ({
   clue,
   onAnswer,
   timeRemaining,
+  canAnswer,
 }) => {
   const [answerText, setAnswerText] = useState('');
 
@@ -31,7 +33,7 @@ export const FinalJeopardyAnswer: React.FC<FinalJeopardyAnswerProps> = ({
         {clue}
       </div>
 
-      {timeRemaining !== null && timeRemaining > 0 ? (
+      {canAnswer && timeRemaining !== null && timeRemaining > 0 ? (
         <form onSubmit={handleSubmit}>
           <input
             type="text"
@@ -46,7 +48,7 @@ export const FinalJeopardyAnswer: React.FC<FinalJeopardyAnswerProps> = ({
           </button>
         </form>
       ) : (
-        <p>Time's up! Calculating scores...</p>
+        <p>{canAnswer ? "Time's up! Calculating scores..." : 'Waiting for other players...'}</p>
       )}
     </div>
   );

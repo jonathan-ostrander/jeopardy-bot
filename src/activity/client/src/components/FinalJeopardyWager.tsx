@@ -52,6 +52,7 @@ export const FinalJeopardyWager: React.FC<FinalJeopardyWagerProps> = ({
         </>
       ) : (
         <div style={{ textAlign: 'center' }}>
+          <p className="wager-label">Category: {category}</p>
           {maxWager === 0 ? (
             <p className="wager-waiting">You cannot participate in Final Jeopardy with a non-positive score.</p>
           ) : (

@@ -146,6 +146,7 @@ export interface PrivatePlayerState {
   canWager: boolean;
   maxWager: number;
   finalJeopardyClue: string | null;
+  canAnswer: boolean;
 }
 
 export type GameActionType = 

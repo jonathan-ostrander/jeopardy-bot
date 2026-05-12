@@ -78,6 +78,7 @@ const App: FC = () => {
                 isAnsweringPlayer={isAnsweringPlayer}
                 userId={userId!}
                 attemptedPlayerIds={gameState.attemptedPlayerIds}
+                currentAnsweringPlayerId={gameState.currentAnsweringPlayerId}
                 onBuzz={() => sendAction('buzz')}
                 onPass={() => sendAction('pass')}
                 onAnswer={(text) => sendAction('answer', { text })}
@@ -102,7 +103,7 @@ const App: FC = () => {
         </div>
       )}
 
-      {gameState.status === 'daily_double_wager' && (
+      {gameState.status === 'daily_double_wager' && isCurrentPlayer && (
         <div className="game-layout">
           <div className="board-container">
             <WagerInput
@@ -110,6 +111,22 @@ const App: FC = () => {
               isDailyDouble={true}
               onWager={(amount) => sendAction('wager', { amount })}
             />
+          </div>
+          <ScorePanel
+            players={gameState.players}
+            currentPlayerId={gameState.currentPlayerId}
+            round={gameState.round}
+          />
+        </div>
+      )}
+
+      {gameState.status === 'daily_double_wager' && !isCurrentPlayer && (
+        <div className="game-layout">
+          <div className="board-container">
+            <div className="wager-screen">
+              <h2>⚠️ DAILY DOUBLE!</h2>
+              <p className="wager-waiting">Waiting for {gameState.players.find(p => p.userId === gameState.currentPlayerId)?.username} to place their wager...</p>
+            </div>
           </div>
           <ScorePanel
             players={gameState.players}
@@ -134,6 +151,7 @@ const App: FC = () => {
           clue={privateState?.finalJeopardyClue || ''}
           onAnswer={(text) => sendAction('answer', { text })}
           timeRemaining={gameState.timeRemaining}
+          canAnswer={privateState?.canAnswer || false}
         />
       )}
 

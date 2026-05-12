@@ -1,4 +1,4 @@
-import { GameState, PublicGameState, PublicCategory, PublicPlayer, PublicSelectedQuestion, PrivatePlayerState } from '../shared/types';
+import { GameState, PublicGameState, PublicCategory, PublicPlayer, PublicSelectedQuestion, PrivatePlayerState } from '../../shared/types';
 
 export function sanitizeGameState(game: GameState): PublicGameState {
   const categories: PublicCategory[] = (game.round === 'jeopardy' 
@@ -99,6 +99,7 @@ export function getPrivatePlayerState(game: GameState, userId: string): PrivateP
   let canWager = false;
   let maxWager = 0;
   let finalJeopardyClue: string | null = null;
+  let canAnswer = false;
 
   if (game.status === 'daily_double_wager' && game.currentPlayerId === userId) {
     canWager = true;
@@ -113,9 +114,10 @@ export function getPrivatePlayerState(game: GameState, userId: string): PrivateP
     maxWager = player.score;
   }
 
-  if (game.status === 'final_jeopardy_answering' && player && player.finalJeopardyAnswer === null) {
+  if (game.status === 'final_jeopardy_answering') {
     finalJeopardyClue = game.board.finalJeopardy.clue;
+    canAnswer = player !== undefined && player.finalJeopardyAnswer === null && player.score > 0;
   }
 
-  return { canWager, maxWager, finalJeopardyClue };
+  return { canWager, maxWager, finalJeopardyClue, canAnswer };
 }
